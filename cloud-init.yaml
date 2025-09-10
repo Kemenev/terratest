@@ -1,0 +1,16 @@
+fs_setup:
+  - label: data
+    filesystem: ext4
+    device: /dev/sdb
+
+mounts:
+  - [ /dev/sdb, /data ]
+
+runcmd:
+  - pvcreate /dev/sdb
+  - vgcreate vg_data /dev/sdb
+  - lvcreate -l 100%FREE -n lv_data vg_data
+  - mkfs.ext4 /dev/vg_data/lv_data
+  - mkdir -p /data
+  - echo '/dev/vg_data/lv_data /data ext4 defaults 0 0' >> /etc/fstab
+  - mount /data

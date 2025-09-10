@@ -1,0 +1,52 @@
+image: alpine/terragrunt:1.12.2
+
+stages:
+  - validate
+  - plan
+  - apply
+
+before_script:
+  - unzip -o terraform-plugins.zip
+  - export TF_VAR_vsphere_password=$(echo "$TF_VAR_vsphere_password" | base64 -d)
+  - mkdir -p ~/.terraform.d/plugins/registry.terraform.io/hashicorp/vsphere/2.15.0/linux_amd64
+  - mkdir -p ~/.terraform.d/plugins/registry.terraform.io/e-breuninger/netbox/4.2.0/linux_amd64
+  - cp terraform-plugins/registry.terraform.io/hashicorp/vsphere/2.15.0/terraform-provider-vsphere_v2.15.0 ~/.terraform.d/plugins/registry.terraform.io/hashicorp/vsphere/2.15.0/linux_amd64
+  - cp terraform-plugins/registry.terraform.io/e-breuninger/netbox/4.2.0/linux_amd64/terraform-provider-netbox_v4.2.0 ~/.terraform.d/plugins/registry.terraform.io/e-breuninger/netbox/4.2.0/linux_amd64
+  - chmod +x ~/.terraform.d/plugins/registry.terraform.io/hashicorp/vsphere/2.15.0/linux_amd64/terraform-provider-vsphere_v2.15.0
+  - chmod +x ~/.terraform.d/plugins/registry.terraform.io/e-breuninger/netbox/4.2.0/linux_amd64/terraform-provider-netbox_v4.2.0
+  - echo "$NETBOX_CERT" > /usr/local/share/ca-certificates/netbox.crt
+  - update-ca-certificates
+  
+validate:
+  stage: validate
+  tags:
+    - docker
+  script:
+    - terraform init -backend=false
+    - terraform validate
+
+plan:
+  stage: plan
+  tags:
+    - docker
+  script:
+    - terraform init -backend=false
+    - terraform plan -var-file=terraform.tfvars -out=tfplan
+    - terraform show -no-color tfplan > tfplan.txt
+  artifacts:
+    paths:
+      - tfplan.txt
+      - tfplan
+      - .terraform.lock.hcl
+      - .terraform
+apply:
+  stage: apply
+  tags:
+    - docker
+  script:
+    - terraform init -backend=false
+    - terraform apply -auto-approve tfplan
+  when: manual
+  dependencies:
+    - plan
+  allow_failure: false
