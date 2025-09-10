@@ -92,9 +92,10 @@ resource "vsphere_virtual_machine" "vm" {
   annotation       = each.value.notes
   custom_attributes = lookup(each.value,"custom_attributes", {})
   extra_config = {
-    "guestinfo.userdata" = base64encode("${path.module}cloud-init.yaml")
+    "guestinfo.userdata"          = base64encode(file("${path.module}/cloud-init.yaml"))
     "guestinfo.userdata.encoding" = "base64"
   }
+
   network_interface {
     network_id   = data.vsphere_network.network[each.key].id
     adapter_type = data.vsphere_virtual_machine.template[each.key].network_interface_types[0]
@@ -110,12 +111,14 @@ resource "vsphere_virtual_machine" "vm" {
   dynamic "disk" {
     for_each = try([each.value.extra_disk], [])
     content {
-      label = "disk1"
-      size = disk.value
-      unit_number = 1
+      label            = "disk1"
+      size             = disk.value
+      unit_number      = 1
       thin_provisioned = true
+      eagerly_scrub    = false
     }
   }
+
   clone {
     template_uuid = data.vsphere_virtual_machine.template[each.key].id
 
@@ -135,4 +138,5 @@ resource "vsphere_virtual_machine" "vm" {
       dns_suffix_list  = [each.value.env]
     }
   }
+
 }
