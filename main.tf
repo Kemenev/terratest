@@ -135,13 +135,17 @@ resource "vsphere_virtual_machine" "vm" {
       network_interface {
         ipv4_address = split("/", each.value.ip)[0]
         ipv4_netmask = tonumber(split("/", each.value.ip)[1])
+        ipv4_gateway     = each.value.gateway
+        dns_server_list  = each.value.dns
+        dns_suffix_list  = [each.value.env]
       }
-
-      ipv4_gateway     = each.value.gateway
-      dns_server_list  = each.value.dns
-      dns_suffix_list  = [each.value.env]
+      cloud_config = templatefile("${path.module}/cloud-init.yaml", {
+        vg_name     = lookup(each.value.extra_disk, "vg", null)
+        lv_name     = lookup(each.value.extra_disk, "lv", null)
+        mount_point = lookup(each.value.extra_disk, "mount", null)
+      })
     }
   }
-
 }
+
 
