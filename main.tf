@@ -94,7 +94,11 @@ resource "vsphere_virtual_machine" "vm" {
   extra_config = {
     "guestinfo.userdata"          = base64encode(file("${path.module}/cloud-init.yaml"))
     "guestinfo.userdata.encoding" = "base64"
+    "vg_name"                     = lookup(each.value.extra_disk, "vg", null)
+    "lv_name"                     = lookup(each.value.extra_disk, "lv", null)
+    "mount_point"                 = lookup(each.value.extra_disk, "mount", null)
   }
+
 
   network_interface {
     network_id   = data.vsphere_network.network[each.key].id
@@ -140,3 +144,4 @@ resource "vsphere_virtual_machine" "vm" {
   }
 
 }
+
