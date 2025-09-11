@@ -3,30 +3,12 @@ packages:
   - lvm2
 
 runcmd:
-  - bash -c |
-      DISK="/dev/sdb"
-      PART="${DISK}1"
-      VG=$(vmware-rpctool "guestinfo.vg_name")
-      LV=$(vmware-rpctool "guestinfo.lv_name")
-      MNT=$(vmware-rpctool "guestinfo.mount_point")
-
-      if [ -z "$VG" ] || [ -z "$LV" ] || [ -z "$MNT" ]; then
-        echo "No LVM config passed, skipping"
-        exit 0
-      fi
-
-      echo "Provisioning disk with VG=$VG LV=$LV MNT=$MNT"
-
-      parted "$DISK" --script mklabel gpt mkpart primary ext4 0% 100%
-      sleep 5
-
-      partprobe "$DISK"
-      while [ ! -b "$PART" ]; do sleep 1; done
-
-      pvcreate "$PART"
-      vgcreate "$VG" "$PART"
-      lvcreate -l 100%FREE -n "$LV" "$VG"
-      mkfs.ext4 "/dev/$VG/$LV"
-      mkdir -p "$MNT"
-      echo "/dev/$VG/$LV $MNT ext4 defaults 0 0" >> /etc/fstab
-      mount "$MNT"
+  - parted /dev/sdb --script mklabel gpt mkpart primary ext4 0% 100%
+  - sleep 5
+  - pvcreate /dev/sdb1
+  - vgcreate ${vg} /dev/sdb1
+  - lvcreate -L 100%FREE -n ${lv} ${vg}
+  - mkfs.ext4 /dev/${vg}/${lv}
+  - mkdir -p ${mount}
+  - mount /dev/${vg}/${lv} ${mount}
+  - echo '/dev/${vg}/${lv} ${mount} ext4 defaults 0 0' >> /etc/fstab
