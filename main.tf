@@ -91,13 +91,6 @@ resource "vsphere_virtual_machine" "vm" {
   scsi_type        = data.vsphere_virtual_machine.template[each.key].scsi_type
   annotation       = each.value.notes
   custom_attributes = lookup(each.value,"custom_attributes", {})
-  extra_config = {
-    "guestinfo.userdata"          = base64encode(file("${path.module}/cloud-init.yaml"))
-    "guestinfo.userdata.encoding" = "base64"
-    "vg_name"                     = lookup(each.value.extra_disk, "vg", null)
-    "lv_name"                     = lookup(each.value.extra_disk, "lv", null)
-    "mount_point"                 = lookup(each.value.extra_disk, "mount", null)
-  }
 
 
   network_interface {
@@ -147,5 +140,6 @@ resource "vsphere_virtual_machine" "vm" {
     }
   }
 }
+
 
 
