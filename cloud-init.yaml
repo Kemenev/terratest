@@ -3,36 +3,14 @@ packages:
   - lvm2
 
 runcmd:
-  - bash -c |
-      set -e
-      DISK="/dev/sdb"
-      PART="${DISK}1"
-      VG="vg_data"
-      LV="lv_data"
-      MNT="/data"
-
-      # Разметка если ещё нет
-      if ! lsblk "$PART" &>/dev/null; then
-        parted "$DISK" --script mklabel gpt mkpart primary ext4 0% 100%
-        sleep 2
-      fi
-
-      # PV если ещё нет
-      if ! pvs | grep -q "$PART"; then
-        pvcreate "$PART"
-      fi
-
-      # VG если ещё нет
-      if ! vgs | grep -q "$VG"; then
-        vgcreate "$VG" "$PART"
-      fi
-
-      # LV если ещё нет
-      if ! lvs | grep -q "$LV"; then
-        lvcreate -l 100%FREE -n "$LV" "$VG"
-        mkfs.ext4 "/dev/$VG/$LV"
-      fi
-
-      mkdir -p "$MNT"
-      echo "/dev/$VG/$LV $MNT ext4 defaults 0 0" >> /etc/fstab
-      mount "$MNT"
+  - parted /dev/sdb --script mklabel gpt mkpart primary ext4 0% 100%
+  - sleep 10
+  - partprobe /dev/sdb
+  - while [ ! -b /dev/sdb1 ]; do sleep 1; done
+  - pvcreate /dev/sdb1
+  - vgcreate vg_data /dev/sdb1
+  - lvcreate -l 100%FREE -n lv_data vg_data
+  - mkfs.ext4 /dev/vg_data/lv_data
+  - mkdir -p /data
+  - echo '/dev/vg_data/lv_data /data ext4 defaults 0 0' >> /etc/fstab
+  - mount /data
