@@ -1,16 +1,27 @@
-#cloud-config
-packages:
-  - lvm2
-
 runcmd:
+  - echo "Start parted"
   - parted /dev/sdb --script mklabel gpt mkpart primary ext4 0% 100%
+  - echo "parted done"
   - sleep 10
   - partprobe /dev/sdb
-  - while [ ! -b /dev/sdb1 ]; do sleep 1; done
+  - echo "partprobe done"
+  - while [ ! -b /dev/sdb1 ]; do echo "waiting for /dev/sdb1"; sleep 1; done
+  - echo "/dev/sdb1 found"
   - pvcreate /dev/sdb1
+  - echo "pvcreate done"
   - vgcreate vg_data /dev/sdb1
+  - echo "vgcreate done"
   - lvcreate -l 100%FREE -n lv_data vg_data
+  - echo "lvcreate done"
+  - while [ ! -b /dev/vg_data/lv_data ]; do echo "waiting for /dev/vg_data/lv_data"; sleep 1; done
+  - echo "/dev/vg_data/lv_data found"
+  - ls -l /dev/vg_data
+  - lvdisplay
   - mkfs.ext4 /dev/vg_data/lv_data
+  - echo "mkfs done"
   - mkdir -p /data
+  - echo "mkdir done"
   - echo '/dev/vg_data/lv_data /data ext4 defaults 0 0' >> /etc/fstab
+  - echo "fstab updated"
   - mount /data
+  - echo "mount done"
