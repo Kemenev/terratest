@@ -3,15 +3,16 @@ packages:
   - lvm2
 
 runcmd:
-  - [ bash, -c, |
-      sleep 5 &&
-      parted /dev/sdb --script mklabel gpt mkpart primary ext4 0% 100% &&
-      pvcreate /dev/sdb1 &&
-      vgcreate vg_data /dev/sdb1 &&
-      lvcreate -l 100%FREE -n lv_data vg_data &&
-      mkfs.ext4 /dev/vg_data/lv_data &&
-      mkdir -p /data &&
-      echo '/dev/vg_data/lv_data /data ext4 defaults 0 0' >> /etc/fstab &&
-      mount /data
-    ]
+  - parted /dev/sdb --script mklabel gpt mkpart primary ext4 0% 100%
+  - sleep 10
+  - partprobe /dev/sdb
+  - while [ ! -b /dev/sdb1 ]; do sleep 1; done
+  - pvcreate /dev/sdb1
+  - vgcreate vg_data /dev/sdb1
+  - lvcreate -l 100%FREE -n lv_data vg_data
+  - mkfs.ext4 /dev/vg_data/lv_data
+  - mkdir -p /data
+  - echo '/dev/vg_data/lv_data /data ext4 defaults 0 0' >> /etc/fstab
+  - mount /data
+
 
