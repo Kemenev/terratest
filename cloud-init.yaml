@@ -1,27 +1,32 @@
+#cloud-config
+packages:
+  - lvm2
+
 runcmd:
-  - echo "Start parted"
-  - parted /dev/sdb --script mklabel gpt mkpart primary ext4 0% 100%
-  - echo "parted done"
-  - sleep 10
-  - partprobe /dev/sdb
-  - echo "partprobe done"
-  - while [ ! -b /dev/sdb1 ]; do echo "waiting for /dev/sdb1"; sleep 1; done
-  - echo "/dev/sdb1 found"
-  - pvcreate /dev/sdb1
-  - echo "pvcreate done"
-  - vgcreate vg_data /dev/sdb1
-  - echo "vgcreate done"
-  - lvcreate -l 100%FREE -n lv_data vg_data
-  - echo "lvcreate done"
-  - while [ ! -b /dev/vg_data/lv_data ]; do echo "waiting for /dev/vg_data/lv_data"; sleep 1; done
-  - echo "/dev/vg_data/lv_data found"
-  - ls -l /dev/vg_data
-  - lvdisplay
-  - mkfs.ext4 /dev/vg_data/lv_data
-  - echo "mkfs done"
-  - mkdir -p /data
-  - echo "mkdir done"
-  - echo '/dev/vg_data/lv_data /data ext4 defaults 0 0' >> /etc/fstab
-  - echo "fstab updated"
-  - mount /data
-  - echo "mount done"
+  - bash -c |
+      DISK="/dev/sdb"
+      PART="${DISK}1"
+      VG=$(vmware-rpctool "guestinfo.vg_name")
+      LV=$(vmware-rpctool "guestinfo.lv_name")
+      MNT=$(vmware-rpctool "guestinfo.mount_point")
+
+      if [ -z "$VG" ] || [ -z "$LV" ] || [ -z "$MNT" ]; then
+        echo "No LVM config passed, skipping"
+        exit 0
+      fi
+
+      echo "Provisioning disk with VG=$VG LV=$LV MNT=$MNT"
+
+      parted "$DISK" --script mklabel gpt mkpart primary ext4 0% 100%
+      sleep 5
+
+      partprobe "$DISK"
+      while [ ! -b "$PART" ]; do sleep 1; done
+
+      pvcreate "$PART"
+      vgcreate "$VG" "$PART"
+      lvcreate -l 100%FREE -n "$LV" "$VG"
+      mkfs.ext4 "/dev/$VG/$LV"
+      mkdir -p "$MNT"
+      echo "/dev/$VG/$LV $MNT ext4 defaults 0 0" >> /etc/fstab
+      mount "$MNT"
