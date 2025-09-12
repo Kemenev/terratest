@@ -79,8 +79,6 @@ resource "netbox_ip_address" "ip" {
 }
 
 # Виртуальная машина
-resource "vsphere_virtual_machine" "vm" {
-  for_each         = local.vm_config
 
 resource "vsphere_virtual_machine" "vm" {
   for_each         = local.vm_config
@@ -114,11 +112,11 @@ resource "vsphere_virtual_machine" "vm" {
   }
 
   dynamic "disk" {
-    for_each = try([each.value.extra_disk], [])
+    for_each = { for idx, disk in lookup(each.value, "extra_disk", []) : idx => disk }
     content {
-      label            = "disk1"
+      label            = "disk${disk.key + 1}"
       size             = disk.value.size
-      unit_number      = 1
+      unit_number      = disk.key + 1
       thin_provisioned = true
       eagerly_scrub    = false
     }
@@ -141,6 +139,3 @@ resource "vsphere_virtual_machine" "vm" {
     }
   }
 }
-
-
-
