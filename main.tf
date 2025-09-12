@@ -82,6 +82,8 @@ resource "netbox_ip_address" "ip" {
 resource "vsphere_virtual_machine" "vm" {
   for_each         = local.vm_config
 
+resource "vsphere_virtual_machine" "vm" {
+  for_each         = local.vm_config
   name             = each.key
   resource_pool_id = data.vsphere_compute_cluster.cluster[each.key].resource_pool_id
   datastore_id     = data.vsphere_datastore.datastore[each.key].id
@@ -90,16 +92,14 @@ resource "vsphere_virtual_machine" "vm" {
   guest_id         = data.vsphere_virtual_machine.template[each.key].guest_id
   scsi_type        = data.vsphere_virtual_machine.template[each.key].scsi_type
   annotation       = each.value.notes
-  custom_attributes = lookup(each.value,"custom_attributes", {})
+  custom_attributes = lookup(each.value, "custom_attributes", {})
+
   extra_config = {
-    "guestinfo.userdata"          = base64encode(templatefile("${path.module}/cloud-init.tpl.yaml", {
-#    "vg"                     = lookup(each.value.extra_disk, "vg", null)
-#    "lv"                     = lookup(each.value.extra_disk, "lv", null)
-      vg = lookup(each.value, "vg" , "vg_data")
-      vg = lookup(each.value, "lv" , "lv_data")
-      vg = lookup(each.value, "mount" , "/data")
-  }))
-#    "mount_point"                 = lookup(each.value.extra_disk, "mount", null)
+    "guestinfo.userdata" = base64encode(templatefile("${path.module}/cloud-init.yaml.tpl", {
+      vg    = lookup(each.value, "vg", "vg_data")
+      lv    = lookup(each.value, "lv", "lv_data")
+      mount = lookup(each.value, "mount", "/data")
+    }))
   }
 
   network_interface {
@@ -114,6 +114,7 @@ resource "vsphere_virtual_machine" "vm" {
     thin_provisioned  = data.vsphere_virtual_machine.template[each.key].disks[0].thin_provisioned
     storage_policy_id = data.vsphere_storage_policy.vm_policy[each.value.storage_policy].id
   }
+
   dynamic "disk" {
     for_each = try([each.value.extra_disk], [])
     content {
@@ -127,22 +128,18 @@ resource "vsphere_virtual_machine" "vm" {
 
   clone {
     template_uuid = data.vsphere_virtual_machine.template[each.key].id
-
     customize {
       linux_options {
         host_name = each.key
         domain    = each.value.domain
       }
-
       network_interface {
         ipv4_address = split("/", each.value.ip)[0]
         ipv4_netmask = tonumber(split("/", each.value.ip)[1])
       }
-
-      ipv4_gateway     = each.value.gateway
-      dns_server_list  = each.value.dns
-      dns_suffix_list  = [each.value.env]
+      ipv4_gateway    = each.value.gateway
+      dns_server_list = each.value.dns
+      dns_suffix_list = [each.value.env]
     }
   }
-
 }
