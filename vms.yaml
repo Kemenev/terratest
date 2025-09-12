@@ -3,15 +3,23 @@ vms:
     cpu: 2
     ram: 2048
     disk: 50
-    extra_disk:
-      - vg: vg_data
-        lv: lv_data
-        mount: /data
-        size: 10G     # размер первого тома
-      - vg: vg_logs
-        lv: lv_logs
-        mount: /logs
-        size: 5G      # размер второго тома
+    extra_disk = [
+  {
+    vg = "vg_data"
+    lv = "lv_data"
+    mount = "/data"
+    size = "10G"
+    disk_letter = "b"
+  },
+  {
+    vg = "vg_logs"
+    lv = "lv_logs"
+    mount = "/logs"
+    size = "5G"
+    disk_letter = "c"
+  }
+]
+
     ip: "10.16.181.50/24"
     dns:
       - "10.12.84.5"
@@ -65,3 +73,4 @@ vms:
      # root
 
      # test
+
