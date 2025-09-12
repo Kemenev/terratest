@@ -5,6 +5,8 @@ packages:
 runcmd:
   - echo "=== Start cloud-init disk setup debug ===" | tee /var/log/cloud-init-debug.log
 %{ for disk in extra_disk ~}
+  - echo "WAITING FOR /dev/sd${disk.disk_letter}" | tee -a /var/log/cloud-init-debug.log
+  - while [ ! -b /dev/sd${disk.disk_letter} ]; do sleep 2; done
   - parted /dev/sd${disk.disk_letter} --script mklabel gpt mkpart primary ext4 0% 100% | tee -a /var/log/cloud-init-debug.log
   - sleep 5
   - pvcreate /dev/sd${disk.disk_letter}1 | tee -a /var/log/cloud-init-debug.log
@@ -15,4 +17,3 @@ runcmd:
   - mount /dev/${disk.vg}/${disk.lv} ${disk.mount} | tee -a /var/log/cloud-init-debug.log
   - bash -c "echo '/dev/${disk.vg}/${disk.lv} ${disk.mount} ext4 defaults 0 0' >> /etc/fstab" | tee -a /var/log/cloud-init-debug.log
 %{ endfor ~}
-  - echo "=== End cloud-init disk setup debug ===" | tee -a /var/log/cloud-init-debug.log
