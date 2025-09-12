@@ -97,9 +97,6 @@ resource "vsphere_virtual_machine" "vm" {
   extra_config = {
     "guestinfo.userdata" = base64encode(templatefile("${path.module}/cloud-init.yaml.tpl", {
       extra_disk = lookup(each.value, "extra_disk", [])
-#      vg    = lookup(each.value, "vg", "vg_data")
-#      lv    = lookup(each.value, "lv", "lv_data")
-#      mount = lookup(each.value, "mount", "/data")
     }))
   }
 
@@ -144,5 +141,6 @@ resource "vsphere_virtual_machine" "vm" {
     }
   }
 }
+
 
 
