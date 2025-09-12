@@ -5,7 +5,7 @@ locals {
   vm_config = {
     for vm in local.vm_config_raw.vms : vm.name => vm
   }
-
+  disk_letters = ["b", "c", "d", "e", "f", "g"]
   vrf_map = {
     "BANK-COM" = 37
     # можно добавить остальные VRF и их ID из NetBox
@@ -144,4 +144,5 @@ resource "vsphere_virtual_machine" "vm" {
     }
   }
 }
+
 
