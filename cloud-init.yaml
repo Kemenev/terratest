@@ -4,11 +4,11 @@ packages:
 
 runcmd:
   - echo "=== Start cloud-init disk setup debug ===" | tee /var/log/cloud-init-debug.log
-%{ for idx, disk in extra_disk ~}
-  - parted /dev/sd${index_to_letter(idx)} --script mklabel gpt mkpart primary ext4 0% 100% 2>&1 | tee -a /var/log/cloud-init-debug.log
+%{ for disk in extra_disk ~}
+  - parted /dev/sd${disk.disk_letter} --script mklabel gpt mkpart primary ext4 0% 100% 2>&1 | tee -a /var/log/cloud-init-debug.log
   - sleep 5
-  - pvcreate /dev/sd${index_to_letter(idx)}1 2>&1 | tee -a /var/log/cloud-init-debug.log
-  - vgcreate ${disk.vg} /dev/sd${index_to_letter(idx)}1 2>&1 | tee -a /var/log/cloud-init-debug.log
+  - pvcreate /dev/sd${disk.disk_letter}1 2>&1 | tee -a /var/log/cloud-init-debug.log
+  - vgcreate ${disk.vg} /dev/sd${disk.disk_letter}1 2>&1 | tee -a /var/log/cloud-init-debug.log
   - lvcreate -L ${disk.size} -n ${disk.lv} ${disk.vg} 2>&1 | tee -a /var/log/cloud-init-debug.log
   - mkfs.ext4 /dev/${disk.vg}/${disk.lv} 2>&1 | tee -a /var/log/cloud-init-debug.log
   - mkdir -p ${disk.mount} 2>&1 | tee -a /var/log/cloud-init-debug.log
