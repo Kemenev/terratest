@@ -2,31 +2,17 @@
 packages:
   - lvm2
 
-disk_setup:
-%{ for disk in extra_disk ~}
-  /dev/sd${disk.disk_letter}:
-    table_type: gpt
-    layout: true
-    overwrite: true
-%{ endfor ~}
-
-lvm:
-%{ for disk in extra_disk ~}
-  ${disk.vg}:
-    devices: ["/dev/sd${disk.disk_letter}1"]
-%{ endfor ~}
-
-fs_setup:
-%{ for disk in extra_disk ~}
-  - label: ${disk.lv}
-    filesystem: ext4
-    device: /dev/${disk.vg}/${disk.lv}
-    overwrite: true
-%{ endfor ~}
-
-mounts:
-%{ for disk in extra_disk ~}
-  - [ /dev/${disk.vg}/${disk.lv}, ${disk.mount} ]
-%{ endfor ~}
 runcmd:
-  - [ sh, -c, "echo 'Cloud-init started' >> /var/log/cloud-init-debug.log" ]
+%{ for disk in extra_disk ~}
+  - parted /dev/sd${disk.disk_letter} --script mklabel gpt mkpart primary ext4 0% 100%
+  - sleep 2
+  - pvcreate /dev/sd${disk.disk_letter}1
+  - vgcreate ${disk.vg} /dev/sd${disk.disk_letter}1
+  - lvcreate -l 100%FREE -n ${disk.lv} ${disk.vg}
+  - mkfs.ext4 /dev/${disk.vg}/${disk.lv}
+  - mkdir -p ${disk.mount}
+  - mount /dev/${disk.vg}/${disk.lv} ${disk.mount}
+  - grep "/dev/${disk.vg}/${disk.lv}" /etc/fstab || echo "/dev/${disk.vg}/${disk.lv} ${disk.mount} ext4 defaults 0 0" >> /etc/fstab
+%{ endfor ~}
+
+  - [ sh, -c, "echo 'Cloud-init finished LVM setup' >> /var/log/cloud-init-debug.log" ]
