@@ -91,7 +91,16 @@ resource "vsphere_virtual_machine" "vm" {
   scsi_type        = data.vsphere_virtual_machine.template[each.key].scsi_type
   annotation       = each.value.notes
   custom_attributes = lookup(each.value,"custom_attributes", {})
-
+  extra_config = {
+    "guestinfo.userdata"          = base64encode(templatefile("${path.module}/cloud-init.tpl.yaml", {
+#    "vg"                     = lookup(each.value.extra_disk, "vg", null)
+#    "lv"                     = lookup(each.value.extra_disk, "lv", null)
+      vg = lookup(each.value, "vg" , "vg_data")
+      vg = lookup(each.value, "lv" , "lv_data")
+      vg = lookup(each.value, "mount" , "/data")
+  }))
+#    "mount_point"                 = lookup(each.value.extra_disk, "mount", null)
+  }
 
   network_interface {
     network_id   = data.vsphere_network.network[each.key].id
@@ -109,7 +118,7 @@ resource "vsphere_virtual_machine" "vm" {
     for_each = try([each.value.extra_disk], [])
     content {
       label            = "disk1"
-      size             = disk.value
+      size             = disk.value.size
       unit_number      = 1
       thin_provisioned = true
       eagerly_scrub    = false
@@ -128,18 +137,12 @@ resource "vsphere_virtual_machine" "vm" {
       network_interface {
         ipv4_address = split("/", each.value.ip)[0]
         ipv4_netmask = tonumber(split("/", each.value.ip)[1])
-        ipv4_gateway     = each.value.gateway
-        dns_server_list  = each.value.dns
-        dns_suffix_list  = [each.value.env]
       }
-      cloud_config = templatefile("${path.module}/cloud-init.yaml", {
-        vg_name     = lookup(each.value.extra_disk, "vg", null)
-        lv_name     = lookup(each.value.extra_disk, "lv", null)
-        mount_point = lookup(each.value.extra_disk, "mount", null)
-      })
+
+      ipv4_gateway     = each.value.gateway
+      dns_server_list  = each.value.dns
+      dns_suffix_list  = [each.value.env]
     }
   }
+
 }
-
-
-
