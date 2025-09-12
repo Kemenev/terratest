@@ -2,18 +2,31 @@
 packages:
   - lvm2
 
-runcmd:
-  - echo "=== Start cloud-init disk setup debug ===" | tee /var/log/cloud-init-debug.log
+disk_setup:
 %{ for disk in extra_disk ~}
-  - echo "WAITING FOR /dev/sd${disk.disk_letter}" | tee -a /var/log/cloud-init-debug.log
-  - while [ ! -b /dev/sd${disk.disk_letter} ]; do sleep 2; done
-  - parted /dev/sd${disk.disk_letter} --script mklabel gpt mkpart primary ext4 0% 100% | tee -a /var/log/cloud-init-debug.log
-  - sleep 5
-  - pvcreate /dev/sd${disk.disk_letter}1 | tee -a /var/log/cloud-init-debug.log
-  - vgcreate ${disk.vg} /dev/sd${disk.disk_letter}1 | tee -a /var/log/cloud-init-debug.log
-  - lvcreate -L ${disk.size} -n ${disk.lv} ${disk.vg} | tee -a /var/log/cloud-init-debug.log
-  - mkfs.ext4 /dev/${disk.vg}/${disk.lv} | tee -a /var/log/cloud-init-debug.log
-  - mkdir -p ${disk.mount} | tee -a /var/log/cloud-init-debug.log
-  - mount /dev/${disk.vg}/${disk.lv} ${disk.mount} | tee -a /var/log/cloud-init-debug.log
-  - bash -c "echo '/dev/${disk.vg}/${disk.lv} ${disk.mount} ext4 defaults 0 0' >> /etc/fstab" | tee -a /var/log/cloud-init-debug.log
+  /dev/sd${disk.disk_letter}:
+    table_type: gpt
+    layout: true
+    overwrite: true
 %{ endfor ~}
+
+lvm:
+%{ for disk in extra_disk ~}
+  ${disk.vg}:
+    devices: ["/dev/sd${disk.disk_letter}1"]
+%{ endfor ~}
+
+fs_setup:
+%{ for disk in extra_disk ~}
+  - label: ${disk.lv}
+    filesystem: ext4
+    device: /dev/${disk.vg}/${disk.lv}
+    overwrite: true
+%{ endfor ~}
+
+mounts:
+%{ for disk in extra_disk ~}
+  - [ /dev/${disk.vg}/${disk.lv}, ${disk.mount} ]
+%{ endfor ~}
+runcmd:
+  - [ sh, -c, "echo 'Cloud-init started' >> /var/log/cloud-init-debug.log" ]
