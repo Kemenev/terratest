@@ -3,6 +3,18 @@ packages:
   - lvm2
 
 runcmd:
+
+  %{ if extend_lvm ~}
+  - parted /dev/sda --script resizepart 2 {{ disk }}GB
+  - sleep 5
+  - pvresize /dev/sda3
+  - lvextend -l +100%FREE /dev/{{ extend_lvm.vg }}/{{ extend_lvm.lv }}
+  - resize2fs /dev/{{ extend_lvm.vg }}/{{ extend_lvm.lv }}
+  - [ sh, -c, "echo '/dev/{{ extend_lvm.vg }}/{{ extend_lvm.lv }} {{ extend_lvm.mount }} ext4 defaults 0 0' >> /etc/fstab" ]
+  - mount {{ extend_lvm.mount }}
+  - [ sh, -c, "echo 'Cloud-init finished LV extension' >> /var/log/cloud-init-debug.log" ]
+  %{ endif ~}
+
 %{ for disk in extra_disk ~}
   - parted /dev/sd${disk.disk_letter} --script mklabel gpt mkpart primary ext4 0% 100%
   - sleep 2
@@ -16,3 +28,4 @@ runcmd:
 %{ endfor ~}
 
   - [ sh, -c, "echo 'Cloud-init finished LVM setup' >> /var/log/cloud-init-debug.log" ]
+
