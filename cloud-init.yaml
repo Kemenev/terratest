@@ -4,16 +4,13 @@ packages:
 
 runcmd:
 
-  %{ if extend_lvm != null ~}
-  - parted /dev/sda --script resizepart 2 {{ disk }}GB  # Расширение партиции до полного размера диска
-  - sleep 10  # Пауза для завершения parted
+%{ for disk2 in extend_lvm ~}
+  - parted /dev/sda --script resizepart 3  # Расширение партиции до полного размера диска
+  - sleep 2  # Пауза для завершения parted
   - pvresize /dev/sda3  # Расширение физического тома
-  - lvextend -l +100%FREE /dev/{{ extend_lvm.vg }}/{{ extend_lvm.lv }}  # Расширение LV
-  - resize2fs /dev/{{ extend_lvm.vg }}/{{ extend_lvm.lv }}  # Расширение файловой системы
-  - [ sh, -c, "echo '/dev/{{ extend_lvm.vg }}/{{ extend_lvm.lv }} {{ extend_lvm.mount }} ext4 defaults 0 0' >> /etc/fstab" ]  # Обновление fstab (если нужно)
-  - mount {{ extend_lvm.mount }}  # Монтирование, если не смонтировано
-  - [ sh, -c, "echo 'Cloud-init finished LV extension' >> /var/log/cloud-init-debug.log" ]
-  %{ endif ~}
+  - lvextend -l +100%FREE /dev/${disk2.vg}/${disk2.lv}  # Расширение LV
+  - resize2fs /dev/${disk2.vg}/${disk2.lv}  # Расширение файловой системы
+%{ endfor ~}
 
   # Глобальная пауза и стабилизация устройств перед обработкой доп. дисков
   - sleep 10
@@ -33,5 +30,6 @@ runcmd:
 %{ endfor ~}
 
   - [ sh, -c, "echo 'Cloud-init finished LVM setup' >> /var/log/cloud-init-debug.log" ]
+
 
 
