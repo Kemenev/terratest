@@ -4,16 +4,21 @@ packages:
 
 runcmd:
 
-  %{ if extend_lvm ~}
-  - parted /dev/sda --script resizepart 2 {{ disk }}GB
-  - sleep 5
-  - pvresize /dev/sda3
-  - lvextend -l +100%FREE /dev/{{ extend_lvm.vg }}/{{ extend_lvm.lv }}
-  - resize2fs /dev/{{ extend_lvm.vg }}/{{ extend_lvm.lv }}
-  - [ sh, -c, "echo '/dev/{{ extend_lvm.vg }}/{{ extend_lvm.lv }} {{ extend_lvm.mount }} ext4 defaults 0 0' >> /etc/fstab" ]
-  - mount {{ extend_lvm.mount }}
+  %{ if extend_lvm != null ~}
+  - parted /dev/sda --script resizepart 2 {{ disk }}GB  # Расширение партиции до полного размера диска
+  - sleep 10  # Пауза для завершения parted
+  - pvresize /dev/sda3  # Расширение физического тома
+  - lvextend -l +100%FREE /dev/{{ extend_lvm.vg }}/{{ extend_lvm.lv }}  # Расширение LV
+  - resize2fs /dev/{{ extend_lvm.vg }}/{{ extend_lvm.lv }}  # Расширение файловой системы
+  - [ sh, -c, "echo '/dev/{{ extend_lvm.vg }}/{{ extend_lvm.lv }} {{ extend_lvm.mount }} ext4 defaults 0 0' >> /etc/fstab" ]  # Обновление fstab (если нужно)
+  - mount {{ extend_lvm.mount }}  # Монтирование, если не смонтировано
   - [ sh, -c, "echo 'Cloud-init finished LV extension' >> /var/log/cloud-init-debug.log" ]
   %{ endif ~}
+
+  # Глобальная пауза и стабилизация устройств перед обработкой доп. дисков
+  - sleep 10
+  - udevadm trigger
+  - udevadm settle --timeout=60
 
 %{ for disk in extra_disk ~}
   - parted /dev/sd${disk.disk_letter} --script mklabel gpt mkpart primary ext4 0% 100%
@@ -28,4 +33,5 @@ runcmd:
 %{ endfor ~}
 
   - [ sh, -c, "echo 'Cloud-init finished LVM setup' >> /var/log/cloud-init-debug.log" ]
+
 
