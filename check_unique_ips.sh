@@ -1,4 +1,4 @@
-IP_LIST=$(yq eval '.[] | .netbox_ip_address.address' vms.yaml)
+IP_LIST=$(yq eval '.ip' vms.yaml)
 DUPLICATES=$(echo "$IP_LIST" | sort | uniq -d)
 if [ ! -z "$DUPLICATES" ]; then
   echo "Duplicate IP addresses found:"
