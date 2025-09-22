@@ -1,9 +1,7 @@
-#!/bin/sh
-
-# Проверка дубликатов IP в vms.yaml
-IP_CONFLICTS=$(yq '.[] | .netbox_ip_address.address' vms.yaml | sort | uniq -d)
-if [ ! -z "$IP_CONFLICTS" ]; then
+IP_LIST=$(yq eval '.[] | .netbox_ip_address.address' vms.yaml)
+DUPLICATES=$(echo "$IP_LIST" | sort | uniq -d)
+if [ ! -z "$DUPLICATES" ]; then
   echo "Duplicate IP addresses found:"
-  echo "$IP_CONFLICTS"
+  echo "$DUPLICATES"
   exit 1
 fi
