@@ -91,12 +91,16 @@ resource "vsphere_virtual_machine" "vm" {
   scsi_type        = data.vsphere_virtual_machine.template[each.key].scsi_type
   annotation       = each.value.notes
   custom_attributes = lookup(each.value, "custom_attributes", {})
+  lifecycle {
+    prevent_destroy = true
+  }
 
   extra_config = {
     "guestinfo.userdata" = base64encode(templatefile("${path.module}/cloud-init.yaml.tpl", {
       extra_disk = lookup(each.value, "extra_disk", [])
       extend_lvm         = lookup(each.value, "extend_lvm", null)
     }))
+    "guestinfo.userdata.encoding" = "base64"
   }
 
   network_interface {
@@ -140,4 +144,3 @@ resource "vsphere_virtual_machine" "vm" {
     }
   }
 }
-
