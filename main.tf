@@ -65,11 +65,24 @@ data "netbox_tenant_group" "group" {
   for_each = local.vm_config
   name     = each.value.tenant_group
 }
+data "netbox_ipam_prefix" "subnet" {
+  for_each = {
+    for name, vm in local.vm_config : name => vm
+    if try(trim(vm.ip), "") == "" && can(vm.subnet)
+  }
 
+  prefix = each.value.subnet
+}
+
+data "netbox_available_ip_address" "auto_ip" {
+  for_each = data.netbox_ipam_prefix.subnet
+
+  prefix_id = each.value.id
+}
 # NetBox IP address
 resource "netbox_ip_address" "ip" {
   for_each      = local.vm_config
-  ip_address      = each.value.ip
+  ip_address      = ip = try(each.value.ip,try(data.netbox_available_ip_address.auto_ip[each.key].address, null))
   status          = "active"
   dns_name        = each.key
   description     = each.value.notes
@@ -144,3 +157,4 @@ resource "vsphere_virtual_machine" "vm" {
     }
   }
 }
+
