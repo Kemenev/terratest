@@ -1,4 +1,3 @@
-
 stages:
   - validate
   - plan
@@ -8,41 +7,10 @@ variables:
   TF_BACKEND_ADDRESS: "$CI_API_V4_URL/projects/$CI_PROJECT_ID/terraform/state/$CI_COMMIT_REF_NAME"
   TF_BACKEND_LOCK: "$CI_API_V4_URL/projects/$CI_PROJECT_ID/terraform/state/$CI_COMMIT_REF_NAME/lock"
 
-validate:
-  stage: validate
+.tf_job: &tf_job
   image: alpine/terragrunt:1.12.2
-  script:
-    - terraform init \
-        -backend-config="address=$TF_BACKEND_ADDRESS" \
-        -backend-config="lock_address=$TF_BACKEND_LOCK" \
-        -backend-config="unlock_address=$TF_BACKEND_LOCK" \
-        -backend-config="username=gitlab-ci-token" \
-        -backend-config="password=$CI_JOB_TOKEN"
-    - terraform validate
-
-plan:
-  stage: plan
-  image: alpine/terragrunt:1.12.2
-  script:
-    - terraform init \
-        -backend-config="address=$TF_BACKEND_ADDRESS" \
-        -backend-config="lock_address=$TF_BACKEND_LOCK" \
-        -backend-config="unlock_address=$TF_BACKEND_LOCK" \
-        -backend-config="username=gitlab-ci-token" \
-        -backend-config="password=$CI_JOB_TOKEN"
-    - terraform plan -out=tfplan
-  artifacts:
-    when: always
-    paths:
-      - tfplan.txt
-      - tfplan
-      - .terraform.lock.hcl
-      - .terraform
-      - tf-debug.log
-
-apply:
-  stage: apply
-  image: alpine/terragrunt:1.12.2
+  tags:
+    - docker
   before_script:
     - unzip -o terraform-plugins.zip
     - export TF_VAR_vsphere_password=$(echo "$TF_VAR_vsphere_password" | base64 -d)
@@ -60,8 +28,32 @@ apply:
         -backend-config="unlock_address=$TF_BACKEND_LOCK" \
         -backend-config="username=gitlab-ci-token" \
         -backend-config="password=$CI_JOB_TOKEN"
-  tags:
-    - docker
+
+validate:
+  <<: *tf_job
+  stage: validate
+  script:
+    - terraform validate
+
+plan:
+  <<: *tf_job
+  stage: plan
+  script:
+    - terraform plan -out=tfplan
+    - terraform show -no-color tfplan > tfplan.txt
+  artifacts:
+    when: always
+    paths:
+      - tfplan
+      - tfplan.txt
+      - .terraform.lock.hcl
+      - .terraform
+      - tf-debug.log
+    expire_in: 1 day
+
+apply:
+  <<: *tf_job
+  stage: apply
   script:
     - terraform apply -auto-approve tfplan
   when: manual
