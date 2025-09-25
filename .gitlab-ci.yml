@@ -1,77 +1,68 @@
+
 stages:
   - validate
   - plan
   - apply
-  
+
+variables:
+  TF_BACKEND_ADDRESS: "$CI_API_V4_URL/projects/$CI_PROJECT_ID/terraform/state/$CI_COMMIT_REF_NAME"
+  TF_BACKEND_LOCK: "$CI_API_V4_URL/projects/$CI_PROJECT_ID/terraform/state/$CI_COMMIT_REF_NAME/lock"
+
 validate:
   stage: validate
-  image: alpine/terragrunt:1.12.2  
-  before_script:
-    - unzip -o terraform-plugins.zip
-    - export TF_VAR_vsphere_password=$(echo "$TF_VAR_vsphere_password" | base64 -d)
-    - mkdir -p ~/.terraform.d/plugins/registry.terraform.io/hashicorp/vsphere/2.15.0/linux_amd64
-    - mkdir -p ~/.terraform.d/plugins/registry.terraform.io/e-breuninger/netbox/5.0.0/linux_amd64
-    - cp terraform-plugins/registry.terraform.io/hashicorp/vsphere/2.15.0/terraform-provider-vsphere_v2.15.0 ~/.terraform.d/plugins/registry.terraform.io/hashicorp/vsphere/2.15.0/linux_amd64
-    - cp terraform-plugins/registry.terraform.io/e-breuninger/netbox/5.0.0/linux_amd64/terraform-provider-netbox_v5.0.0 ~/.terraform.d/plugins/registry.terraform.io/e-breuninger/netbox/5.0.0/linux_amd64
-    - chmod +x ~/.terraform.d/plugins/registry.terraform.io/hashicorp/vsphere/2.15.0/linux_amd64/terraform-provider-vsphere_v2.15.0
-    - chmod +x ~/.terraform.d/plugins/registry.terraform.io/e-breuninger/netbox/5.0.0/linux_amd64/terraform-provider-netbox_v5.0.0
-    - echo "$NETBOX_CERT" > /usr/local/share/ca-certificates/netbox.crt
-    - update-ca-certificates
-  tags:
-    - docker
+  image: alpine/terragrunt:1.12.2
   script:
-    - terraform init -backend-config="password=$CI_JOB_TOKEN"
+    - terraform init \
+        -backend-config="address=$TF_BACKEND_ADDRESS" \
+        -backend-config="lock_address=$TF_BACKEND_LOCK" \
+        -backend-config="unlock_address=$TF_BACKEND_LOCK" \
+        -backend-config="username=gitlab-ci-token" \
+        -backend-config="password=$CI_JOB_TOKEN"
     - terraform validate
 
 plan:
   stage: plan
-  image: alpine/terragrunt:1.12.2  
-  before_script:
-    - unzip -o terraform-plugins.zip
-    - export TF_VAR_vsphere_password=$(echo "$TF_VAR_vsphere_password" | base64 -d)
-    - mkdir -p ~/.terraform.d/plugins/registry.terraform.io/hashicorp/vsphere/2.15.0/linux_amd64
-    - mkdir -p ~/.terraform.d/plugins/registry.terraform.io/e-breuninger/netbox/5.0.0/linux_amd64
-    - cp terraform-plugins/registry.terraform.io/hashicorp/vsphere/2.15.0/terraform-provider-vsphere_v2.15.0 ~/.terraform.d/plugins/registry.terraform.io/hashicorp/vsphere/2.15.0/linux_amd64
-    - cp terraform-plugins/registry.terraform.io/e-breuninger/netbox/5.0.0/linux_amd64/terraform-provider-netbox_v5.0.0 ~/.terraform.d/plugins/registry.terraform.io/e-breuninger/netbox/5.0.0/linux_amd64
-    - chmod +x ~/.terraform.d/plugins/registry.terraform.io/hashicorp/vsphere/2.15.0/linux_amd64/terraform-provider-vsphere_v2.15.0
-    - chmod +x ~/.terraform.d/plugins/registry.terraform.io/e-breuninger/netbox/5.0.0/linux_amd64/terraform-provider-netbox_v5.0.0
-    - echo "$NETBOX_CERT" > /usr/local/share/ca-certificates/netbox.crt
-    - update-ca-certificates
-  tags:
-    - docker
+  image: alpine/terragrunt:1.12.2
   script:
-    - export TF_LOG=DEBUG
-    - export TF_LOG_PATH=tf-debug.log
-    - terraform init -backend-config="password=$CI_JOB_TOKEN"
-    - terraform plan -var-file=terraform.tfvars -out=tfplan
-    - terraform show -no-color tfplan > tfplan.txt
-
+    - terraform init \
+        -backend-config="address=$TF_BACKEND_ADDRESS" \
+        -backend-config="lock_address=$TF_BACKEND_LOCK" \
+        -backend-config="unlock_address=$TF_BACKEND_LOCK" \
+        -backend-config="username=gitlab-ci-token" \
+        -backend-config="password=$CI_JOB_TOKEN"
+    - terraform plan -out=tfplan
   artifacts:
     when: always
     paths:
       - tfplan.txt
       - tfplan
-#      - .terraform.lock.hcl
-#      - .terraform
-#      - tf-debug.log
+      - .terraform.lock.hcl
+      - .terraform
+      - tf-debug.log
+
 apply:
   stage: apply
   image: alpine/terragrunt:1.12.2
   before_script:
-   - unzip -o terraform-plugins.zip
-   - export TF_VAR_vsphere_password=$(echo "$TF_VAR_vsphere_password" | base64 -d)
-   - mkdir -p ~/.terraform.d/plugins/registry.terraform.io/hashicorp/vsphere/2.15.0/linux_amd64
-   - mkdir -p ~/.terraform.d/plugins/registry.terraform.io/e-breuninger/netbox/5.0.0/linux_amd64
-   - cp terraform-plugins/registry.terraform.io/hashicorp/vsphere/2.15.0/terraform-provider-vsphere_v2.15.0 ~/.terraform.d/plugins/registry.terraform.io/hashicorp/vsphere/2.15.0/linux_amd64
-   - cp terraform-plugins/registry.terraform.io/e-breuninger/netbox/5.0.0/linux_amd64/terraform-provider-netbox_v5.0.0 ~/.terraform.d/plugins/registry.terraform.io/e-breuninger/netbox/5.0.0/linux_amd64
-   - chmod +x ~/.terraform.d/plugins/registry.terraform.io/hashicorp/vsphere/2.15.0/linux_amd64/terraform-provider-vsphere_v2.15.0
-   - chmod +x ~/.terraform.d/plugins/registry.terraform.io/e-breuninger/netbox/5.0.0/linux_amd64/terraform-provider-netbox_v5.0.0
-   - echo "$NETBOX_CERT" > /usr/local/share/ca-certificates/netbox.crt
-   - update-ca-certificates
+    - unzip -o terraform-plugins.zip
+    - export TF_VAR_vsphere_password=$(echo "$TF_VAR_vsphere_password" | base64 -d)
+    - mkdir -p ~/.terraform.d/plugins/registry.terraform.io/hashicorp/vsphere/2.15.0/linux_amd64
+    - mkdir -p ~/.terraform.d/plugins/registry.terraform.io/e-breuninger/netbox/5.0.0/linux_amd64
+    - cp terraform-plugins/registry.terraform.io/hashicorp/vsphere/2.15.0/terraform-provider-vsphere_v2.15.0 ~/.terraform.d/plugins/registry.terraform.io/hashicorp/vsphere/2.15.0/linux_amd64
+    - cp terraform-plugins/registry.terraform.io/e-breuninger/netbox/5.0.0/linux_amd64/terraform-provider-netbox_v5.0.0 ~/.terraform.d/plugins/registry.terraform.io/e-breuninger/netbox/5.0.0/linux_amd64
+    - chmod +x ~/.terraform.d/plugins/registry.terraform.io/hashicorp/vsphere/2.15.0/linux_amd64/terraform-provider-vsphere_v2.15.0
+    - chmod +x ~/.terraform.d/plugins/registry.terraform.io/e-breuninger/netbox/5.0.0/linux_amd64/terraform-provider-netbox_v5.0.0
+    - echo "$NETBOX_CERT" > /usr/local/share/ca-certificates/netbox.crt
+    - update-ca-certificates
+    - terraform init \
+        -backend-config="address=$TF_BACKEND_ADDRESS" \
+        -backend-config="lock_address=$TF_BACKEND_LOCK" \
+        -backend-config="unlock_address=$TF_BACKEND_LOCK" \
+        -backend-config="username=gitlab-ci-token" \
+        -backend-config="password=$CI_JOB_TOKEN"
   tags:
     - docker
   script:
-    - terraform init -backend-config="password=$CI_JOB_TOKEN"
     - terraform apply -auto-approve tfplan
   when: manual
   dependencies:
