@@ -1,6 +1,13 @@
 locals {
-  vm_config_raw = yamldecode(file("${path.module}/vms.yaml"))
+  env = var.tf_env == "main" ? "prod" : "dev"
+  vm_config_raw = yamldecode(file("${path.module}/vms.${local.env}.yaml"))
 
+  providers_map = {
+    "vc-sand-01.roscap.com" = vsphere.vc-sand-01
+    "bank-vc-01.roscap.com" = vsphere.bank-vc-01
+    "perun.roscap.com" = vsphere.perun
+    "vc-b-1001.domrfbank.ru" = vsphere.vc-b-1001
+  }
   # Преобразуем список ВМ в map: "vm-name" => { параметры }
   vm_config = {
     for vm in local.vm_config_raw.vms : vm.name => vm
@@ -65,30 +72,29 @@ data "netbox_tenant_group" "group" {
   for_each = local.vm_config
   name     = each.value.tenant_group
 }
-data "netbox_ipam_prefix" "subnet" {
-  for_each = {
-    for name, vm in local.vm_config : name => vm
-    if try(trim(vm.ip), "") == "" && can(vm.subnet)
-  }
-
+data "netbox_prefix" "subnet" {
+  for_each = { for k,v in local.vm_config: k => v if try(v.ip,"") == "" && can(v.subnet)}
   prefix = each.value.subnet
 }
 
-data "netbox_available_ip_address" "auto_ip" {
-  for_each = data.netbox_ipam_prefix.subnet
-
+resource "netbox_available_ip_address" "auto_ip" {
+  for_each = data.netbox_prefix.subnet
   prefix_id = each.value.id
 }
+
 # NetBox IP address
 resource "netbox_ip_address" "ip" {
   for_each      = local.vm_config
-  ip_address      = ip = try(each.value.ip,try(data.netbox_available_ip_address.auto_ip[each.key].address, null))
-  status          = "active"
+  ip_address      = coalesce(try(each.value.ip,""),try(netbox_available_ip_address.auto_ip[each.key].ip_address, null))
+  status          = "reserved"
   dns_name        = each.key
   description     = each.value.notes
   tenant_id       = data.netbox_tenant.tenant[each.key].id
 #  tenant_group_id = data.netbox_tenant_group.group[each.key].id
   vrf_id          = lookup(local.vrf_map, each.value.vrf, null)
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # Виртуальная машина
@@ -103,9 +109,11 @@ resource "vsphere_virtual_machine" "vm" {
   guest_id         = data.vsphere_virtual_machine.template[each.key].guest_id
   scsi_type        = data.vsphere_virtual_machine.template[each.key].scsi_type
   annotation       = each.value.notes
+  provider         = local.providers_map[each.value.vsphere_server]
   custom_attributes = lookup(each.value, "custom_attributes", {})
   lifecycle {
     prevent_destroy = true
+    ignore_changes = all
   }
 
   extra_config = {
@@ -148,8 +156,8 @@ resource "vsphere_virtual_machine" "vm" {
         domain    = each.value.domain
       }
       network_interface {
-        ipv4_address = split("/", each.value.ip)[0]
-        ipv4_netmask = tonumber(split("/", each.value.ip)[1])
+        ipv4_address = split("/",coalesce(try(each.value.ip,""),try(netbox_available_ip_address.auto_ip[each.key].ip_address, null)))[0]
+        ipv4_netmask = tonumber(split("/", coalesce(try(each.value.ip,""),try(netbox_available_ip_address.auto_ip[each.key].ip_address, null)))[1])
       }
       ipv4_gateway    = each.value.gateway
       dns_server_list = each.value.dns
@@ -157,4 +165,3 @@ resource "vsphere_virtual_machine" "vm" {
     }
   }
 }
-
