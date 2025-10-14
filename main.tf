@@ -46,10 +46,18 @@ data "vsphere_compute_cluster" "cluster" {
 }
 
 # === Шаблоны (можно из другого vCenter) ===
+# Добавил поиск datacenter, в котором лежит шаблон (в template_server).
+# Если в YAML не задано template_datacenter, будет использован datacenter целевой ВМ.
+data "vsphere_datacenter" "template_dc" {
+  for_each = local.vm_config
+  provider = local.providers_map[each.value.template_server]
+  name     = coalesce(try(each.value.template_datacenter, null), each.value.datacenter)
+}
+
 data "vsphere_virtual_machine" "template" {
   for_each      = local.vm_config
   name          = each.value.template
-  datacenter_id = data.vsphere_datacenter.dc[each.value.datacenter].id
+  datacenter_id = data.vsphere_datacenter.template_dc[each.key].id
   provider      = local.providers_map[each.value.template_server]
 }
 
