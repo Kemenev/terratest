@@ -132,4 +132,65 @@ resource "vsphere_virtual_machine" "vm" {
   }
 
   # === cloud-init ===
-  extra
+  extra_config = {
+    "guestinfo.userdata" = base64encode(templatefile("${path.module}/cloud-init.yaml.tpl", {
+      extra_disk  = lookup(each.value, "extra_disk", [])
+      extend_lvm  = lookup(each.value, "extend_lvm", null)
+    }))
+    "guestinfo.userdata.encoding" = "base64"
+  }
+
+  # === Сеть ===
+  network_interface {
+    network_id   = data.vsphere_network.network[each.key].id
+    adapter_type = data.vsphere_virtual_machine.template[each.key].network_interface_types[0]
+  }
+
+  # === Основной диск ===
+  disk {
+    label             = "disk0"
+    size              = each.value.disk
+    eagerly_scrub     = false
+    thin_provisioned  = data.vsphere_virtual_machine.template[each.key].disks[0].thin_provisioned
+    storage_policy_id = data.vsphere_storage_policy.vm_policy[each.value.storage_policy].id
+  }
+
+  # === Дополнительные диски ===
+  dynamic "disk" {
+    for_each = { for idx, disk in lookup(each.value, "extra_disk", []) : idx => disk }
+    content {
+      label            = "disk${disk.key + 1}"
+      size             = disk.value.size
+      unit_number      = disk.key + 1
+      thin_provisioned = true
+      eagerly_scrub    = false
+    }
+  }
+
+  # === Клонирование из шаблона ===
+  clone {
+    template_uuid = data.vsphere_virtual_machine.template[each.key].id
+
+    customize {
+      linux_options {
+        host_name = each.key
+        domain    = each.value.domain
+      }
+
+      network_interface {
+        ipv4_address = split("/", coalesce(
+          try(each.value.ip, ""),
+          try(netbox_available_ip_address.auto_ip[each.key].ip_address, null)
+        ))[0]
+        ipv4_netmask = tonumber(split("/", coalesce(
+          try(each.value.ip, ""),
+          try(netbox_available_ip_address.auto_ip[each.key].ip_address, null)
+        ))[1])
+      }
+
+      ipv4_gateway    = each.value.gateway
+      dns_server_list = each.value.dns
+      dns_suffix_list = [each.value.env]
+    }
+  }
+}
