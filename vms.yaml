@@ -1,13 +1,17 @@
 vms:
   - name: vm-test-01
-    cpu: 2
+    cpu: 4
     ram: 2048
-    disk: 50
+    disk: 40
+    extend_lvm:
+      - vg: system
+        lv: root
+        mount: /
     extra_disk :
       - vg: vg_data
         lv: lv_data
         mount: /data
-        size: 10
+        size: 50
         disk_letter: b
       - vg: vg_logs
         lv: lv_logs
@@ -19,7 +23,8 @@ vms:
         mount: /test
         size: 10
         disk_letter: d
-    ip: "10.16.181.50/24"
+    ip: ""
+    subnet: "10.16.181.0/24"
     dns:
       - "10.12.84.5"
       - "10.12.84.4"
@@ -37,37 +42,56 @@ vms:
     tenant: BANK-COM
     tenant_group: BANK
     vrf: BANK-COM
-    #custom_attributes:
-      #CMDB_AS_ID: test
-      #CMDB_CRIT: test
-     # CMDB_ENV:  test
-    #  CMDB_GAS_ID: test
-  #- name: vm-test-02
-  #  cpu: 2
-  #  ram: 2048
-  #  disk: 50
-  #  ip: "10.16.181.51/24"
-  #  dns:
-  #    - "10.12.84.5"
-  #    - "10.12.84.4"
-  #  domain: roscap.com
-  #  network: Servers_VLAN1053
-  #  gateway: 10.16.181.1
-  #  env: test
-  #  comment: "Test VM Terraform"
-  #  notes: "Test VM Terraform"
-  #  storage_policy: "01 NDR Storage Policy Thin"
-  #  datacenter: sand-dtc-01
-  #  datastore: sand-vsan
-  #  cluster: sand-cls-01
-  #  template: terraform-test
-  #  tenant: BANK-COM
-  #  tenant_group: BANK
-  #  vrf: BANK-COM
+  - name: vm-test-02
+    cpu: 4
+    ram: 2048
+    disk: 40
+    extend_lvm:
+      - vg: system
+        lv: root
+        mount: /
+    extra_disk :
+      - vg: vg_data
+        lv: lv_data
+        mount: /data
+        size: 50
+        disk_letter: b
+      - vg: vg_logs
+        lv: lv_logs
+        mount: /logs
+        size: 5
+        disk_letter: c
+      - vg: test
+        lv: lv_test
+        mount: /test
+        size: 10
+        disk_letter: d
+    ip: ""
+    subnet: "10.16.181.0/24"
+    dns:
+      - "10.12.84.5"
+      - "10.12.84.4"
+    network: Servers_VLAN1053
+    gateway: 10.16.181.1
+    domain: roscap.com
+    env: test
+    comment: "Test VM Terraform"
+    notes: "Test VM Terraform"
+    vsphere_server: vc-sand-01.roscap.com
+    template_server: vc-sand-01.roscap.com
+    storage_policy: "01 NDR Storage Policy Thin"
+    datacenter: sand-dtc-01
+    datastore: sand-vsan
+    cluster: sand-cls-01
+    template: terraform-test
+    tenant: BANK-COM
+    tenant_group: BANK
+    vrf: BANK-COM
+
     #custom_attributes:
      # CMDB_AS_ID: test
     #  CMDB_CRIT: test
     #  CMDB_ENV:  test
    #   CMDB_GAS_ID: test
      # root
-     # test
+     # test 
