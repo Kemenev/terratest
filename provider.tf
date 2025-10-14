@@ -6,14 +6,36 @@ terraform {
     }
     netbox = {
       source = "e-breuninger/netbox"
-      version = "4.2.0"
+      version = "5.0.0"
     }
   }
 }
 provider "vsphere" {
+  alias = "bank-vc-01"
   user = var.vsphere_user
   password = var.vsphere_password
-  vsphere_server = var.vsphere_server
+  vsphere_server = "bank-vc-01.roscap.com"
+  allow_unverified_ssl = true
+}
+provider "vsphere" {
+  alias = "vc-sand-01"
+  user = var.vsphere_user
+  password = var.vsphere_password
+  vsphere_server = "vc-sand-01.roscap.com"
+  allow_unverified_ssl = true
+}
+provider "vsphere" {
+  alias = "perun"
+  user = var.vsphere_user
+  password = var.vsphere_password
+  vsphere_server = "perun.roscap.com"
+  allow_unverified_ssl = true
+}
+provider "vsphere" {
+  alias = "vc-b-1001"
+  user = var.vsphere_user
+  password = var.vsphere_password
+  vsphere_server = "vc-b-1001.domrfbank.ru"
   allow_unverified_ssl = true
 }
 provider "netbox" {
