@@ -1,0 +1,30 @@
+╷
+│ Error: Terraform encountered problems during initialisation, including problems
+│ with the configuration, described below.
+│ 
+│ The Terraform configuration must be valid before initialization so that
+│ Terraform can determine which modules and providers need to be installed.
+│ 
+│ 
+╵
+╷
+│ Error: Invalid provider configuration reference
+│ 
+│   on main.tf line 53, in data "vsphere_virtual_machine" "template":
+│   53:   provider      = local.providers_map[each.value.template_server]
+│ 
+│ The provider argument requires a provider type name, optionally followed by
+│ a period and then a configuration alias.
+╵
+╷
+│ Error: Invalid provider configuration reference
+│ 
+│   on main.tf line 117, in resource "vsphere_virtual_machine" "vm":
+│  117:   provider         = local.providers_map[each.value.vsphere_server]
+│ 
+│ The provider argument requires a provider type name, optionally followed by
+│ a period and then a configuration alias.
+╵
+Cleaning up project directory and file based variables
+00:01
+ERROR: Job failed: exit code 1
