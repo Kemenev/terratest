@@ -7,10 +7,10 @@ locals {
   # Сопоставление серверов vCenter и alias-провайдеров
   # Здесь мы храним непосредственно ссылки на конфигурации провайдеров (provider references).
   providers_map = {
-    "vc-sand-01.roscap.com"    = vsphere.vc-sand-01
-    "bank-vc-01.roscap.com"    = vsphere.bank-vc-01
-    "perun.roscap.com"         = vsphere.perun
-    "vc-b-1001.domrfbank.ru"   = vsphere.vc-b-1001
+    "vc-sand-01.roscap.com"    = vc-sand-01
+    "bank-vc-01.roscap.com"    = bank-vc-01
+    "perun.roscap.com"         = perun
+    "vc-b-1001.domrfbank.ru"   = vc-b-1001
   }
 
   # Преобразуем список ВМ в map
