@@ -5,6 +5,7 @@ locals {
   vm_config_raw = yamldecode(file("${path.module}/vms.${local.env}.yaml"))
 
   # Сопоставление серверов vCenter и alias-провайдеров
+  # Здесь мы храним непосредственно ссылки на конфигурации провайдеров (provider references).
   providers_map = {
     "vc-sand-01.roscap.com"    = vsphere.vc-sand-01
     "bank-vc-01.roscap.com"    = vsphere.bank-vc-01
@@ -50,15 +51,24 @@ data "vsphere_compute_cluster" "cluster" {
 # Если в YAML не задано template_datacenter, будет использован datacenter целевой ВМ.
 data "vsphere_datacenter" "template_dc" {
   for_each = local.vm_config
-  provider = local.providers_map[each.value.template_server]
+
+  # передаём конкретную конфигурацию провайдера через providers = { vsphere = ... }
+  providers = {
+    vsphere = local.providers_map[each.value.template_server]
+  }
+
   name     = coalesce(try(each.value.template_datacenter, null), each.value.datacenter)
 }
 
 data "vsphere_virtual_machine" "template" {
-  for_each      = local.vm_config
+  for_each = local.vm_config
+
+  providers = {
+    vsphere = local.providers_map[each.value.template_server]
+  }
+
   name          = each.value.template
   datacenter_id = data.vsphere_datacenter.template_dc[each.key].id
-  provider      = local.providers_map[each.value.template_server]
 }
 
 # === Сети ===
@@ -122,7 +132,11 @@ resource "netbox_ip_address" "ip" {
 resource "vsphere_virtual_machine" "vm" {
   for_each = local.vm_config
 
-  provider         = local.providers_map[each.value.vsphere_server]
+  # Передаём нужную конфигурацию провайдера через providers = { vsphere = ... }
+  providers = {
+    vsphere = local.providers_map[each.value.vsphere_server]
+  }
+
   name             = each.key
   resource_pool_id = data.vsphere_compute_cluster.cluster[each.key].resource_pool_id
   datastore_id     = data.vsphere_datastore.datastore[each.key].id
