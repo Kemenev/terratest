@@ -2,8 +2,8 @@
 # Локали и исходные данные
 ############################################
 locals {
-  env            = var.tf_env == "main" ? "prod" : "dev"
-  vm_config_raw  = yamldecode(file("${path.module}/vms.${local.env}.yaml"))
+  env           = var.tf_env == "main" ? "prod" : "dev"
+  vm_config_raw = yamldecode(file("${path.module}/vms.${local.env}.yaml"))
 
   # Преобразуем список ВМ в map: name => vm
   vm_config = {
@@ -21,7 +21,6 @@ locals {
 ############################################
 # Datacenter per alias
 ############################################
-# vc-sand-01
 data "vsphere_datacenter" "dc_sand" {
   for_each = toset(distinct([
     for vm in local.vm_config : vm.datacenter
@@ -31,7 +30,6 @@ data "vsphere_datacenter" "dc_sand" {
   provider = vsphere.vc-sand-01
 }
 
-# bank-vc-01
 data "vsphere_datacenter" "dc_bank" {
   for_each = toset(distinct([
     for vm in local.vm_config : vm.datacenter
@@ -41,7 +39,6 @@ data "vsphere_datacenter" "dc_bank" {
   provider = vsphere.bank-vc-01
 }
 
-# perun
 data "vsphere_datacenter" "dc_perun" {
   for_each = toset(distinct([
     for vm in local.vm_config : vm.datacenter
@@ -51,7 +48,6 @@ data "vsphere_datacenter" "dc_perun" {
   provider = vsphere.perun
 }
 
-# vc-b-1001
 data "vsphere_datacenter" "dc_b1001" {
   for_each = toset(distinct([
     for vm in local.vm_config : vm.datacenter
@@ -192,31 +188,43 @@ locals {
 }
 
 ############################################
-# Template per alias -> local.tpl[each.key]
+# Template per template_server -> local.tpl[each.key]
 ############################################
 data "vsphere_virtual_machine" "tpl_sand" {
-  for_each = { for k, v in local.vm_config : k => v if try(v.vsphere_alias, "") == "vc-sand-01" || try(v.vsphere_server, "") == "vc-sand-01.roscap.com" }
+  for_each = {
+    for k, v in local.vm_config :
+    k => v if try(v.template_server, "") == "vc-sand-01.roscap.com"
+  }
   name          = each.value.template
   datacenter_id = local.dc[coalesce(try(each.value.template_datacenter, null), each.value.datacenter)].id
   provider      = vsphere.vc-sand-01
 }
 
 data "vsphere_virtual_machine" "tpl_bank" {
-  for_each = { for k, v in local.vm_config : k => v if try(v.vsphere_alias, "") == "bank-vc-01" || try(v.vsphere_server, "") == "bank-vc-01.roscap.com" }
+  for_each = {
+    for k, v in local.vm_config :
+    k => v if try(v.template_server, "") == "bank-vc-01.roscap.com"
+  }
   name          = each.value.template
   datacenter_id = local.dc[coalesce(try(each.value.template_datacenter, null), each.value.datacenter)].id
   provider      = vsphere.bank-vc-01
 }
 
 data "vsphere_virtual_machine" "tpl_perun" {
-  for_each = { for k, v in local.vm_config : k => v if try(v.vsphere_alias, "") == "perun" || try(v.vsphere_server, "") == "perun.roscap.com" }
+  for_each = {
+    for k, v in local.vm_config :
+    k => v if try(v.template_server, "") == "perun.roscap.com"
+  }
   name          = each.value.template
   datacenter_id = local.dc[coalesce(try(each.value.template_datacenter, null), each.value.datacenter)].id
   provider      = vsphere.perun
 }
 
 data "vsphere_virtual_machine" "tpl_b1001" {
-  for_each = { for k, v in local.vm_config : k => v if try(v.vsphere_alias, "") == "vc-b-1001" || try(v.vsphere_server, "") == "vc-b-1001.domrfbank.ru" }
+  for_each = {
+    for k, v in local.vm_config :
+    k => v if try(v.template_server, "") == "vc-b-1001.domrfbank.ru"
+  }
   name          = each.value.template
   datacenter_id = local.dc[coalesce(try(each.value.template_datacenter, null), each.value.datacenter)].id
   provider      = vsphere.vc-b-1001
@@ -232,7 +240,7 @@ locals {
 }
 
 ############################################
-# Storage Policy (опционально, если есть разные)
+# Storage Policy (строго по имени, без игнора)
 ############################################
 data "vsphere_storage_policy" "pol_sand" {
   for_each = toset(distinct([
@@ -360,7 +368,7 @@ resource "vsphere_virtual_machine" "vm_sand" {
     size              = each.value.disk
     eagerly_scrub     = false
     thin_provisioned  = local.tpl[each.key].disks[0].thin_provisioned
-    storage_policy_id = try(local.pol[each.value.storage_policy].id, null)
+    storage_policy_id = local.pol[each.value.storage_policy].id
   }
 
   dynamic "disk" {
@@ -436,7 +444,7 @@ resource "vsphere_virtual_machine" "vm_bank" {
     size              = each.value.disk
     eagerly_scrub     = false
     thin_provisioned  = local.tpl[each.key].disks[0].thin_provisioned
-    storage_policy_id = try(local.pol[each.value.storage_policy].id, null)
+    storage_policy_id = local.pol[each.value.storage_policy].id
   }
 
   dynamic "disk" {
