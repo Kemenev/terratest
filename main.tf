@@ -2,12 +2,20 @@
 # Локали и исходные данные
 ############################################
 locals {
-  env           = var.tf_env == "main" ? "prod" : "dev"
-  vm_config_raw = yamldecode(file("${path.module}/vms.${local.env}.yaml"))
+  # Определяем окружение
+  env = var.tf_env == "main" ? "prod" : "dev"
+
+  # Ищем все YAML-файлы в папке vms/
+  vm_files = fileset("${path.module}/vms", "*.yaml")
+
+  # Читаем все YAML и объединяем в единый список
+  vm_config_raw = flatten([
+    for f in local.vm_files : yamldecode(file("${path.module}/vms/${f}")).vms
+  ])
 
   # Преобразуем список ВМ в map: name => vm
   vm_config = {
-    for vm in local.vm_config_raw.vms : vm.name => vm
+    for vm in local.vm_config_raw : vm.name => vm
   }
 
   disk_letters = ["b", "c", "d", "e", "f", "g"]
