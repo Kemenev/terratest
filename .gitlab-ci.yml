@@ -1,3 +1,5 @@
+
+
 stages:
   - validate
   - plan
@@ -8,6 +10,9 @@ variables:
   TF_BACKEND_LOCK: "$CI_API_V4_URL/projects/$CI_PROJECT_ID/terraform/state/$CI_COMMIT_REF_NAME/lock"
   TF_VAR_tf_env: $CI_COMMIT_REF_NAME
 
+# =========================
+# Общие terraform job
+# =========================
 .tf_job: &tf_job
   image: alpine/terragrunt:1.12.2
   tags:
@@ -23,11 +28,10 @@ variables:
     - chmod +x ~/.terraform.d/plugins/registry.terraform.io/e-breuninger/netbox/5.0.0/linux_amd64/terraform-provider-netbox_v5.0.0
     - echo "$NETBOX_CERT" > /usr/local/share/ca-certificates/netbox.crt
     - update-ca-certificates
-    - terraform init
-      -backend-config="address=$TF_BACKEND_ADDRESS"
-      -backend-config="username=gitlab-ci-token"
+    - terraform init \
+      -backend-config="address=$TF_BACKEND_ADDRESS" \
+      -backend-config="username=gitlab-ci-token" \
       -backend-config="password=$CI_JOB_TOKEN"
-
 
 validate:
   <<: *tf_job
@@ -60,4 +64,24 @@ apply:
   dependencies:
     - plan
   allow_failure: false
-#
+
+# =========================
+# Job: блокировка dev YAML в main
+# =========================
+prevent_dev_vms_in_main:
+  stage: validate
+  image: alpine:latest
+  script:
+    - apk add --no-cache git
+    - git fetch origin main
+    - NEW_DEV_FILES=$(git diff --name-status origin/main...$CI_COMMIT_SHA | awk '$1=="A" {print $2}' | grep '^vms/dev/' || true)
+    - |
+      if [ -n "$NEW_DEV_FILES" ]; then
+        echo "ERROR: MR пытается добавить dev YAML в main:"
+        echo "$NEW_DEV_FILES"
+        exit 1
+      else
+        echo "No dev YAML added — OK"
+      fi
+  only:
+    - merge_requests
