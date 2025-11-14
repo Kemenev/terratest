@@ -23,14 +23,11 @@ variables:
     - chmod +x ~/.terraform.d/plugins/registry.terraform.io/e-breuninger/netbox/5.0.0/linux_amd64/terraform-provider-netbox_v5.0.0
     - echo "$NETBOX_CERT" > /usr/local/share/ca-certificates/netbox.crt
     - update-ca-certificates
-    - echo $TF_VAR_vsphere_user
-    - echo $TF_VAR_vsphere_password
     - terraform init
       -backend-config="address=$TF_BACKEND_ADDRESS"
       -backend-config="username=gitlab-ci-token"
       -backend-config="password=$CI_JOB_TOKEN"
-#-backend-config="lock_address=$TF_BACKEND_LOCK"
-# -backend-config="unlock_address=$TF_BACKEND_LOCK"
+
 
 validate:
   <<: *tf_job
@@ -63,3 +60,4 @@ apply:
   dependencies:
     - plan
   allow_failure: false
+#
