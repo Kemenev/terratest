@@ -376,7 +376,7 @@ resource "vsphere_virtual_machine" "vm_sand" {
 
   disk {
     label             = "disk0"
-    size              = each.value.disk
+    size              = tonumber(each.value.disk)
     eagerly_scrub     = false
     thin_provisioned  = local.tpl[each.key].disks[0].thin_provisioned
     storage_policy_id = local.pol[each.value.storage_policy].id
@@ -489,4 +489,5 @@ resource "vsphere_virtual_machine" "vm_bank" {
     }
   }
 }
+
 
