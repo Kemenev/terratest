@@ -6,11 +6,14 @@ locals {
   env = var.tf_env == "main" ? "prod" : "dev"
 
   # Ищем все YAML-файлы в папке vms/
-  vm_files = fileset("${path.module}/vms", "*.yaml")
+  vm_files = fileset("${path.module}/${local.env == "prod" ? "vmsprod" : "vmsdev"}", "*.yaml")
 
   # Читаем все YAML и объединяем в единый список
   vm_config_raw = flatten([
-    for f in local.vm_files : yamldecode(file("${path.module}/vms/${f}")).vms
+    for f in local.vm_files :
+    yamldecode(file("${path.module}/${local.env == "prod" ? "vmsprod" : "vmsdev"}/${f}")).vms
+  ])
+
   ])
 
   # Преобразуем список ВМ в map: name => vm
@@ -346,8 +349,8 @@ resource "vsphere_virtual_machine" "vm_sand" {
   resource_pool_id = local.cluster[each.key].resource_pool_id
   datastore_id     = local.ds[each.key].id
 
-  num_cpus   = each.value.cpu
-  memory     = each.value.ram
+  num_cpus   = tonumber(each.value.cpu)
+  memory     = tonumber(each.value.ram)
   guest_id   = local.tpl[each.key].guest_id
   scsi_type  = local.tpl[each.key].scsi_type
   annotation = each.value.notes
@@ -486,3 +489,4 @@ resource "vsphere_virtual_machine" "vm_bank" {
     }
   }
 }
+
