@@ -1,6 +1,7 @@
 stages:
   - validate
   - plan
+  - repair
   - apply
 
 variables:
@@ -15,19 +16,23 @@ variables:
   before_script:
     - unzip -o terraform-plugins.zip
     - export TF_VAR_vsphere_password=$(echo "$TF_VAR_vsphere_password" | base64 -d)
+
     - mkdir -p ~/.terraform.d/plugins/registry.terraform.io/hashicorp/vsphere/2.15.0/linux_amd64
     - mkdir -p ~/.terraform.d/plugins/registry.terraform.io/e-breuninger/netbox/5.0.0/linux_amd64
+
     - cp terraform-plugins/registry.terraform.io/hashicorp/vsphere/2.15.0/terraform-provider-vsphere_v2.15.0 ~/.terraform.d/plugins/registry.terraform.io/hashicorp/vsphere/2.15.0/linux_amd64
     - cp terraform-plugins/registry.terraform.io/e-breuninger/netbox/5.0.0/linux_amd64/terraform-provider-netbox_v5.0.0 ~/.terraform.d/plugins/registry.terraform.io/e-breuninger/netbox/5.0.0/linux_amd64
+
     - chmod +x ~/.terraform.d/plugins/registry.terraform.io/hashicorp/vsphere/2.15.0/linux_amd64/terraform-provider-vsphere_v2.15.0
     - chmod +x ~/.terraform.d/plugins/registry.terraform.io/e-breuninger/netbox/5.0.0/linux_amd64/terraform-provider-netbox_v5.0.0
+
     - echo "$NETBOX_CERT" > /usr/local/share/ca-certificates/netbox.crt
     - update-ca-certificates
+
     - terraform init
       -backend-config="address=$TF_BACKEND_ADDRESS"
       -backend-config="username=gitlab-ci-token"
       -backend-config="password=$CI_JOB_TOKEN"
-
 
 validate:
   <<: *tf_job
@@ -39,17 +44,66 @@ plan:
   <<: *tf_job
   stage: plan
   script:
+    # Guard: фиксируем state ДО plan (чтобы отличать "новые" ресурсы от пересоздания)
+    - terraform state list > state_before.txt || true
+
     - terraform plan -out=tfplan
     - terraform show -no-color tfplan > tfplan.txt
+
+    # Guard: если в плане есть "will be created" для адресов, которые уже были в state,
+    # значит ресурс (часто VM) исчез/удален руками, и Terraform хочет пересоздать — блокируем.
+    - |
+      grep '^# .* will be created' tfplan.txt \
+        | sed 's/^# //; s/ will be created$//' \
+        | sort -u > creates_in_plan.txt
+
+      grep -Fx -f state_before.txt creates_in_plan.txt > recreates_from_state.txt || true
+
+      if [ -s recreates_from_state.txt ]; then
+        echo "ERROR: Terraform пытается пересоздать ресурсы, которые уже были в state."
+        echo "Скорее всего VM удалили/сломали вручную, и Terraform хочет создать её заново."
+        echo ""
+        echo "Список:"
+        cat recreates_from_state.txt
+        echo ""
+        echo "Дальше варианты:"
+        echo " - VM нужна -> разберите инцидент и принимайте решение осознанно"
+        echo " - VM НЕ нужна -> уберите из YAML/конфига и запустите manual job forget_missing"
+        exit 1
+      fi
   artifacts:
     when: always
     paths:
       - tfplan
       - tfplan.txt
+      - state_before.txt
+      - creates_in_plan.txt
+      - recreates_from_state.txt
       - .terraform.lock.hcl
       - .terraform
       - tf-debug.log
     expire_in: 1 day
+
+forget_missing:
+  <<: *tf_job
+  stage: repair
+  when: manual
+  dependencies:
+    - plan
+  allow_failure: false
+  script:
+    - |
+      if [ ! -s recreates_from_state.txt ]; then
+        echo "Нет ресурсов для удаления из state (recreates_from_state.txt пуст или отсутствует)."
+        exit 0
+      fi
+
+      echo "Удаляем ресурсы из state:"
+      cat recreates_from_state.txt
+
+      while read -r addr; do
+        terraform state rm "$addr"
+      done < recreates_from_state.txt
 
 apply:
   <<: *tf_job
