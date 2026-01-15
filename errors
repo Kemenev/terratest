@@ -21,4 +21,17 @@ netbox_ip_address.ip["vm-test-copydev-copy"]
 vsphere_virtual_machine.vm_sand["vm-test-copydev"]
 vsphere_virtual_machine.vm_sand["vm-test-copydev-copy"]
   # vsphere_virtual_machine.vm_sand["vm-test-copydev-copy"] will be created
+- |
+  grep 'vsphere_virtual_machine' tfplan.txt | grep -E 'will be created|will be replaced|must be replaced|destroyed and then created' \
+    | sed -E 's/^.*# *//; s/ will be created$//; s/ will be replaced$//; s/ must be replaced$//; s/ destroyed and then created$//' \
+    | sort -u > creates_in_plan.txt || true
+
+  grep -Fx -f state_before.txt creates_in_plan.txt > recreates_from_state.txt || true
+
+  if [ -s recreates_from_state.txt ]; then
+    echo "ERROR: Terraform пытается пересоздать существующие VM"
+    cat recreates_from_state.txt
+    exit 1
+  fi
+
 
