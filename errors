@@ -1,30 +1,204 @@
-╷
-│ Error: Terraform encountered problems during initialisation, including problems
-│ with the configuration, described below.
-│ 
-│ The Terraform configuration must be valid before initialization so that
-│ Terraform can determine which modules and providers need to be installed.
-│ 
-│ 
-╵
-╷
-│ Error: Invalid provider configuration reference
-│ 
-│   on main.tf line 53, in data "vsphere_virtual_machine" "template":
-│   53:   provider      = local.providers_map[each.value.template_server]
-│ 
-│ The provider argument requires a provider type name, optionally followed by
-│ a period and then a configuration alias.
-╵
-╷
-│ Error: Invalid provider configuration reference
-│ 
-│   on main.tf line 117, in resource "vsphere_virtual_machine" "vm":
-│  117:   provider         = local.providers_map[each.value.vsphere_server]
-│ 
-│ The provider argument requires a provider type name, optionally followed by
-│ a period and then a configuration alias.
-╵
-Cleaning up project directory and file based variables
-00:01
-ERROR: Job failed: exit code 1
+
+Terraform used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+  + create
+
+Terraform will perform the following actions:
+
+  # vsphere_virtual_machine.vm_sand["vm-test-copydev-copy"] will be created
+  + resource "vsphere_virtual_machine" "vm_sand" {
+      + annotation                              = "Test VM Terraform"
+      + boot_retry_delay                        = 10000
+      + change_version                          = (known after apply)
+      + cpu_limit                               = -1
+      + cpu_share_count                         = (known after apply)
+      + cpu_share_level                         = "normal"
+      + datastore_id                            = "datastore-5003"
+      + default_ip_address                      = (known after apply)
+      + ept_rvi_mode                            = (known after apply)
+      + extra_config                            = {
+          + "guestinfo.userdata"          = "I2Nsb3VkLWNvbmZpZwpwYWNrYWdlczoKICAtIGx2bTIKCnJ1bmNtZDoKCiAgLSBwYXJ0ZWQgL2Rldi9zZGEgLS1zY3JpcHQgcmVzaXplcGFydCAzIDEwMCUgICMg0KDQsNGB0YjQuNGA0LXQvdC40LUg0L/QsNGA0YLQuNGG0LjQuCDQtNC+INC/0L7Qu9C90L7Qs9C+INGA0LDQt9C80LXRgNCwINC00LjRgdC60LAKICAtIHNsZWVwIDEgICMg0J/QsNGD0LfQsCDQtNC70Y8g0LfQsNCy0LXRgNGI0LXQvdC40Y8gcGFydGVkCiAgLSBwdnJlc2l6ZSAvZGV2L3NkYTMgICMg0KDQsNGB0YjQuNGA0LXQvdC40LUg0YTQuNC30LjRh9C10YHQutC+0LPQviDRgtC+0LzQsAogIC0gbHZleHRlbmQgLWwgKzEwMCVGUkVFIC9kZXYvc3lzdGVtL3Jvb3QgICMg0KDQsNGB0YjQuNGA0LXQvdC40LUgTFYKICAtIHJlc2l6ZTJmcyAvZGV2L3N5c3RlbS9yb290ICAjINCg0LDRgdGI0LjRgNC10L3QuNC1INGE0LDQudC70L7QstC+0Lkg0YHQuNGB0YLQtdC80YsKCiAgLSBwYXJ0ZWQgL2Rldi9zZGIgLS1zY3JpcHQgbWtsYWJlbCBncHQgbWtwYXJ0IHByaW1hcnkgZXh0NCAwJSAxMDAlCiAgLSBzbGVlcCAxCiAgLSBwdmNyZWF0ZSAvZGV2L3NkYjEKICAtIHZnY3JlYXRlIHZnX2RhdGEgL2Rldi9zZGIxCiAgLSBsdmNyZWF0ZSAtbCAxMDAlRlJFRSAtbiBsdl9kYXRhIHZnX2RhdGEKICAtIG1rZnMuZXh0NCAvZGV2L3ZnX2RhdGEvbHZfZGF0YQogIC0gbWtkaXIgLXAgL2RhdGEKICAtIG1vdW50IC9kZXYvdmdfZGF0YS9sdl9kYXRhIC9kYXRhCiAgLSBncmVwICIvZGV2L3ZnX2RhdGEvbHZfZGF0YSIgL2V0Yy9mc3RhYiB8fCBlY2hvICIvZGV2L3ZnX2RhdGEvbHZfZGF0YSAvZGF0YSBleHQ0IGRlZmF1bHRzIDAgMCIgPj4gL2V0Yy9mc3RhYgogIC0gcGFydGVkIC9kZXYvc2RjIC0tc2NyaXB0IG1rbGFiZWwgZ3B0IG1rcGFydCBwcmltYXJ5IGV4dDQgMCUgMTAwJQogIC0gc2xlZXAgMQogIC0gcHZjcmVhdGUgL2Rldi9zZGMxCiAgLSB2Z2NyZWF0ZSB2Z19sb2dzIC9kZXYvc2RjMQogIC0gbHZjcmVhdGUgLWwgMTAwJUZSRUUgLW4gbHZfbG9ncyB2Z19sb2dzCiAgLSBta2ZzLmV4dDQgL2Rldi92Z19sb2dzL2x2X2xvZ3MKICAtIG1rZGlyIC1wIC9sb2dzCiAgLSBtb3VudCAvZGV2L3ZnX2xvZ3MvbHZfbG9ncyAvbG9ncwogIC0gZ3JlcCAiL2Rldi92Z19sb2dzL2x2X2xvZ3MiIC9ldGMvZnN0YWIgfHwgZWNobyAiL2Rldi92Z19sb2dzL2x2X2xvZ3MgL2xvZ3MgZXh0NCBkZWZhdWx0cyAwIDAiID4+IC9ldGMvZnN0YWIKICAtIHBhcnRlZCAvZGV2L3NkZCAtLXNjcmlwdCBta2xhYmVsIGdwdCBta3BhcnQgcHJpbWFyeSBleHQ0IDAlIDEwMCUKICAtIHNsZWVwIDEKICAtIHB2Y3JlYXRlIC9kZXYvc2RkMQogIC0gdmdjcmVhdGUgdGVzdCAvZGV2L3NkZDEKICAtIGx2Y3JlYXRlIC1sIDEwMCVGUkVFIC1uIGx2X3Rlc3QgdGVzdAogIC0gbWtmcy5leHQ0IC9kZXYvdGVzdC9sdl90ZXN0CiAgLSBta2RpciAtcCAvdGVzdAogIC0gbW91bnQgL2Rldi90ZXN0L2x2X3Rlc3QgL3Rlc3QKICAtIGdyZXAgIi9kZXYvdGVzdC9sdl90ZXN0IiAvZXRjL2ZzdGFiIHx8IGVjaG8gIi9kZXYvdGVzdC9sdl90ZXN0IC90ZXN0IGV4dDQgZGVmYXVsdHMgMCAwIiA+PiAvZXRjL2ZzdGFiCgogIC0gWyBzaCwgLWMsICJlY2hvICdDbG91ZC1pbml0IGZpbmlzaGVkIExWTSBzZXR1cCcgPj4gL3Zhci9sb2cvY2xvdWQtaW5pdC1kZWJ1Zy5sb2ciIF0="
+          + "guestinfo.userdata.encoding" = "base64"
+        }
+      + extra_config_reboot_required            = true
+      + firmware                                = "bios"
+      + force_power_off                         = true
+      + guest_id                                = "ubuntu64Guest"
+      + guest_ip_addresses                      = (known after apply)
+      + hardware_version                        = (known after apply)
+      + host_system_id                          = (known after apply)
+      + hv_mode                                 = (known after apply)
+      + id                                      = (known after apply)
+      + ide_controller_count                    = 2
+      + imported                                = (known after apply)
+      + latency_sensitivity                     = "normal"
+      + memory                                  = 2048
+      + memory_limit                            = -1
+      + memory_share_count                      = (known after apply)
+      + memory_share_level                      = "normal"
+      + migrate_wait_timeout                    = 30
+      + moid                                    = (known after apply)
+      + name                                    = "vm-test-copydev-copy"
+      + num_cores_per_socket                    = 1
+      + num_cpus                                = 4
+      + nvme_controller_count                   = 0
+      + power_state                             = (known after apply)
+      + poweron_timeout                         = 300
+      + reboot_required                         = (known after apply)
+      + resource_pool_id                        = "resgroup-9"
+      + run_tools_scripts_after_power_on        = true
+      + run_tools_scripts_after_resume          = true
+      + run_tools_scripts_before_guest_shutdown = true
+      + run_tools_scripts_before_guest_standby  = true
+      + sata_controller_count                   = 0
+      + scsi_bus_sharing                        = "noSharing"
+      + scsi_controller_count                   = 1
+      + scsi_type                               = "pvscsi"
+      + shutdown_wait_timeout                   = 3
+      + storage_policy_id                       = (known after apply)
+      + swap_placement_policy                   = "inherit"
+      + sync_time_with_host                     = true
+      + tools_upgrade_policy                    = "manual"
+      + uuid                                    = (known after apply)
+      + vapp_transport                          = (known after apply)
+      + vmware_tools_status                     = (known after apply)
+      + vmx_path                                = (known after apply)
+      + wait_for_guest_ip_timeout               = 0
+      + wait_for_guest_net_routable             = true
+      + wait_for_guest_net_timeout              = 5
+
+      + clone {
+          + template_uuid = "42396f68-ba1d-dbdb-9488-21f49ed229e2"
+          + timeout       = 30
+
+          + customize {
+              + dns_server_list = [
+                  + "10.12.84.5",
+                  + "10.12.84.4",
+                ]
+              + dns_suffix_list = [
+                  + "test",
+                ]
+              + ipv4_gateway    = "10.16.181.1"
+              + timeout         = 10
+
+              + linux_options {
+                  + domain       = "roscap.com"
+                  + host_name    = "vm-test-copydev-copy"
+                  + hw_clock_utc = true
+                }
+
+              + network_interface {
+                  + ipv4_address = "10.16.181.5"
+                  + ipv4_netmask = 24
+                }
+            }
+        }
+
+      + disk {
+          + attach            = false
+          + controller_type   = "scsi"
+          + datastore_id      = "<computed>"
+          + device_address    = (known after apply)
+          + disk_mode         = "persistent"
+          + disk_sharing      = "sharingNone"
+          + eagerly_scrub     = false
+          + io_limit          = -1
+          + io_reservation    = 0
+          + io_share_count    = 0
+          + io_share_level    = "normal"
+          + keep_on_remove    = false
+          + key               = 0
+          + label             = "disk0"
+          + path              = (known after apply)
+          + size              = 40
+          + storage_policy_id = "0ae398e9-8324-40e9-b3db-ea5ed0926933"
+          + thin_provisioned  = true
+          + unit_number       = 0
+          + uuid              = (known after apply)
+          + write_through     = false
+        }
+      + disk {
+          + attach            = false
+          + controller_type   = "scsi"
+          + datastore_id      = "<computed>"
+          + device_address    = (known after apply)
+          + disk_mode         = "persistent"
+          + disk_sharing      = "sharingNone"
+          + eagerly_scrub     = false
+          + io_limit          = -1
+          + io_reservation    = 0
+          + io_share_count    = 0
+          + io_share_level    = "normal"
+          + keep_on_remove    = false
+          + key               = 0
+          + label             = "disk1"
+          + path              = (known after apply)
+          + size              = 50
+          + storage_policy_id = (known after apply)
+          + thin_provisioned  = true
+          + unit_number       = 1
+          + uuid              = (known after apply)
+          + write_through     = false
+        }
+      + disk {
+          + attach            = false
+          + controller_type   = "scsi"
+          + datastore_id      = "<computed>"
+          + device_address    = (known after apply)
+          + disk_mode         = "persistent"
+          + disk_sharing      = "sharingNone"
+          + eagerly_scrub     = false
+          + io_limit          = -1
+          + io_reservation    = 0
+          + io_share_count    = 0
+          + io_share_level    = "normal"
+          + keep_on_remove    = false
+          + key               = 0
+          + label             = "disk2"
+          + path              = (known after apply)
+          + size              = 5
+          + storage_policy_id = (known after apply)
+          + thin_provisioned  = true
+          + unit_number       = 2
+          + uuid              = (known after apply)
+          + write_through     = false
+        }
+      + disk {
+          + attach            = false
+          + controller_type   = "scsi"
+          + datastore_id      = "<computed>"
+          + device_address    = (known after apply)
+          + disk_mode         = "persistent"
+          + disk_sharing      = "sharingNone"
+          + eagerly_scrub     = false
+          + io_limit          = -1
+          + io_reservation    = 0
+          + io_share_count    = 0
+          + io_share_level    = "normal"
+          + keep_on_remove    = false
+          + key               = 0
+          + label             = "disk3"
+          + path              = (known after apply)
+          + size              = 10
+          + storage_policy_id = (known after apply)
+          + thin_provisioned  = true
+          + unit_number       = 3
+          + uuid              = (known after apply)
+          + write_through     = false
+        }
+
+      + network_interface {
+          + adapter_type          = "vmxnet3"
+          + bandwidth_limit       = -1
+          + bandwidth_reservation = 0
+          + bandwidth_share_count = (known after apply)
+          + bandwidth_share_level = "normal"
+          + device_address        = (known after apply)
+          + key                   = (known after apply)
+          + mac_address           = (known after apply)
+          + network_id            = "dvportgroup-3097035"
+        }
+    }
+
+Plan: 1 to add, 0 to change, 0 to destroy.
