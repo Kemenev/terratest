@@ -20,3 +20,5 @@ netbox_ip_address.ip["vm-test-copydev"]
 netbox_ip_address.ip["vm-test-copydev-copy"]
 vsphere_virtual_machine.vm_sand["vm-test-copydev"]
 vsphere_virtual_machine.vm_sand["vm-test-copydev-copy"]
+  # vsphere_virtual_machine.vm_sand["vm-test-copydev-copy"] will be created
+
