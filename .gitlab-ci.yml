@@ -38,21 +38,41 @@ validate:
 plan:
   <<: *tf_job
   stage: plan
-  # План может упасть (guard / prevent_destroy). Но pipeline должен продолжиться,
-  # чтобы были доступны manual jobs (retire/recreate).
+  # plan может упасть (guard / prevent_destroy), но pipeline должен продолжиться,
+  # чтобы можно было нажать manual jobs (retire/recreate).
   allow_failure: true
   script:
     # Гарантируем существование файлов для artifacts (чтобы GitLab не ругался)
-    - touch tfplan.txt state_before.txt vm_creates_or_replaces.txt missing_vm_addresses.txt missing_vm_names.txt netbox_plan_remove.txt
+    - touch tfplan.txt state_before.txt vm_creates_or_replaces.txt missing_vm_addresses.txt missing_vm_names.txt netbox_plan_remove.txt plan.log
 
     # Снимок state ДО plan (нужно, чтобы отличать "новые" VM от пересоздания)
     - terraform state list > state_before.txt || true
 
-    # Генерируем план
-    - terraform plan -out=tfplan
-    - terraform show -no-color tfplan > tfplan.txt
+    # Запускаем plan так, чтобы даже при ошибке у нас остался лог (plan.log)
+    - |
+      set +e
+      terraform plan -out=tfplan 2>&1 | tee plan.log
+      PLAN_RC=${PIPESTATUS[0]}
+      set -e
 
-    # 1) Guard по vSphere: если Terraform хочет создать/заменить VM, которая уже была в state — сигнализируем.
+      # Если tfplan создан — делаем tfplan.txt
+      if [ -f tfplan ]; then
+        terraform show -no-color tfplan > tfplan.txt || true
+      else
+        : > tfplan.txt
+      fi
+
+      # Извлекаем адреса ресурсов, на которых сработал prevent_destroy (в первую очередь NetBox)
+      # Нам нужен именно адрес: netbox_ip_address.ip["..."]
+      sed -n 's/^.*Resource \([^ ]\+\) has lifecycle\.prevent_destroy set.*$/\1/p' plan.log \
+        | grep '^netbox_' \
+        | sort -u > netbox_plan_remove.txt || true
+
+      echo "=== PLAN_RC=$PLAN_RC ==="
+      echo "=== netbox_plan_remove.txt ==="
+      cat netbox_plan_remove.txt || true
+
+    # Guard по vSphere: если Terraform хочет создать/заменить VM, которая уже была в state — сигнализируем.
     - |
       grep 'vsphere_virtual_machine' tfplan.txt | grep -E 'will be created|will be replaced|must be replaced|destroyed and then created' \
         | sed -E 's/^.*# *//; s/ will be created$//; s/ will be replaced$//; s/ must be replaced$//; s/ destroyed and then created$//' \
@@ -61,15 +81,6 @@ plan:
       grep -Fx -f state_before.txt vm_creates_or_replaces.txt > missing_vm_addresses.txt || true
       sed -n 's/.*\["\([^"]\+\)"\].*/\1/p' missing_vm_addresses.txt | sort -u > missing_vm_names.txt || true
 
-    # 2) NetBox: собираем точные netbox_* адреса, которые Terraform хочет удалить/replace.
-    # Это нужно для retire_missing, чтобы "отвязать" их из state и не упираться в prevent_destroy.
-    - |
-      grep -E '^ *# *netbox_' tfplan.txt | grep -E 'will be destroyed|will be replaced|must be replaced|destroyed and then created' \
-        | sed -E 's/^.*# *//; s/ will be destroyed$//; s/ will be replaced$//; s/ must be replaced$//; s/ destroyed and then created$//' \
-        | sort -u > netbox_plan_remove.txt || true
-
-    # Если найдено пересоздание VM — падаем (но artifacts сохранятся, и manual jobs будут доступны).
-    - |
       if [ -s missing_vm_addresses.txt ]; then
         echo "ERROR: Обнаружены VM, которые Terraform пытается пересоздать (скорее всего удалены вручную):"
         cat missing_vm_names.txt
@@ -84,6 +95,7 @@ plan:
     paths:
       - tfplan
       - tfplan.txt
+      - plan.log
       - state_before.txt
       - vm_creates_or_replaces.txt
       - missing_vm_addresses.txt
@@ -94,26 +106,26 @@ plan:
       - tf-debug.log
     expire_in: 1 day
 
-# Retire: NetBox НЕ удаляем. Просто "отвязываем" из Terraform state то,
-# что Terraform хотел удалить/replace (netbox_plan_remove.txt).
+# Retire: NetBox НЕ удаляем. Просто "отвязываем" из Terraform state netbox_* ресурсы,
+# которые Terraform хотел удалить (они попали в netbox_plan_remove.txt из plan.log).
 retire_missing:
   <<: *tf_job
   stage: repair
   when: manual
   allow_failure: false
-  dependencies:
-    - plan
+  needs:
+    - job: plan
+      artifacts: true
   script:
     - touch retire_netbox_state_rm.txt
     - |
       if [ ! -s netbox_plan_remove.txt ]; then
-        echo "Нет netbox_* ресурсов, которые Terraform планировал удалить/replace (netbox_plan_remove.txt пуст)."
-        echo "Нечего отвязывать."
+        echo "netbox_plan_remove.txt отсутствует или пуст — нечего отвязывать."
+        echo "Если в plan была ошибка prevent_destroy, проверь plan.log в artifacts."
         exit 0
       fi
 
-      echo "Retire: отвязываем из state netbox_* ресурсы, которые планировались к удалению/replace."
-      echo "Список:"
+      echo "Retire: отвязываем из state netbox_* ресурсы (в NetBox ничего не удаляется):"
       cat netbox_plan_remove.txt
 
       cp netbox_plan_remove.txt retire_netbox_state_rm.txt
@@ -137,12 +149,13 @@ recreate_missing:
   stage: apply
   when: manual
   allow_failure: false
-  dependencies:
-    - plan
+  needs:
+    - job: plan
+      artifacts: true
   script:
     - |
       if [ ! -s missing_vm_names.txt ]; then
-        echo "missing_vm_names.txt пуст — нечего пересоздавать. Используй обычный apply."
+        echo "missing_vm_names.txt пуст — нечего пересоздавать."
         exit 0
       fi
 
@@ -156,8 +169,9 @@ apply:
   stage: apply
   when: manual
   allow_failure: false
-  dependencies:
-    - plan
+  needs:
+    - job: plan
+      artifacts: true
   script:
     - |
       # Защита от случайного пересоздания: если Guard нашел missing VM,
@@ -166,6 +180,13 @@ apply:
         echo "ERROR: Обнаружены missing VM."
         echo "Используй manual job recreate_missing (восстановить) или retire_missing (удалить навсегда)."
         cat missing_vm_names.txt || true
+        exit 1
+      fi
+
+      # Если tfplan не создан (plan падал) — apply тоже не должен запускаться
+      if [ ! -f tfplan ]; then
+        echo "ERROR: tfplan отсутствует (plan упал)."
+        echo "Apply невозможен. Используй recreate_missing или retire_missing, либо исправь plan."
         exit 1
       fi
 
