@@ -104,15 +104,61 @@ retire_missing:
         exit 0
       fi
 
-      echo "Удаляем из Terraform state следующие ресурсы:"
+      echo "Удаляем из Terraform state следующие ресурсы (обычно vSphere VM):"
       cat missing_vm_addresses.txt
 
       while read -r addr; do
+        [ -z "$addr" ] && continue
         terraform state rm "$addr"
       done < missing_vm_addresses.txt
 
       echo ""
-      echo "Готово. Важно: убери эти VM из YAML/конфига (через MR), иначе Terraform попытается создать их снова."
+      echo "Теперь отвязываем NetBox ресурсы из state (в NetBox ничего НЕ удаляется):"
+
+      # 1) достаём имена VM из адресов вида ...["NAME"]
+      : > retire_vm_names.txt
+      sed -n 's/.*\["\([^"]\+\)"\].*/\1/p' missing_vm_addresses.txt | sort -u > retire_vm_names.txt || true
+
+      if [ ! -s retire_vm_names.txt ]; then
+        echo "Не удалось извлечь имена VM из missing_vm_addresses.txt — пропускаем NetBox часть."
+        exit 0
+      fi
+
+      echo "VM:"
+      cat retire_vm_names.txt
+
+      # 2) собираем список netbox_* адресов для удаления из state
+      : > retire_netbox_state_rm.txt
+
+      while read -r vm; do
+        [ -z "$vm" ] && continue
+        terraform state list | grep '^netbox_' | grep -F "[\"$vm\"]" >> retire_netbox_state_rm.txt || true
+      done < retire_vm_names.txt
+
+      sort -u retire_netbox_state_rm.txt -o retire_netbox_state_rm.txt
+
+      if [ -s retire_netbox_state_rm.txt ]; then
+        echo ""
+        echo "Удаляем из state (NetBox объекты останутся):"
+        cat retire_netbox_state_rm.txt
+
+        while read -r nb; do
+          [ -z "$nb" ] && continue
+          terraform state rm "$nb"
+        done < retire_netbox_state_rm.txt
+      else
+        echo "NetBox ресурсов для этих VM в state не найдено."
+      fi
+
+      echo ""
+      echo "Готово."
+      echo "Важно: убери эти VM из YAML/конфига (через MR), иначе Terraform попытается создать их снова."
+  artifacts:
+    when: always
+    paths:
+      - retire_vm_names.txt
+      - retire_netbox_state_rm.txt
+    expire_in: 1 day
 
 recreate_missing:
   <<: *tf_job
@@ -152,3 +198,4 @@ apply:
     - plan
   allow_failure: false
 #
+
