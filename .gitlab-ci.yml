@@ -42,34 +42,30 @@ plan:
   # чтобы можно было нажать manual jobs (retire/recreate).
   allow_failure: true
   script:
-    # Чтобы artifacts не ломались
+    # Гарантируем существование файлов для artifacts (чтобы GitLab не ругался)
     - touch tfplan.txt state_before.txt vm_creates_or_replaces.txt missing_vm_addresses.txt missing_vm_names.txt netbox_plan_remove.txt plan.log
 
-    # Снимок state ДО plan
+    # Снимок state ДО plan (нужно, чтобы отличать "новые" VM от пересоздания)
     - terraform state list > state_before.txt || true
 
-    # Планируем так, чтобы лог сохранился даже при ошибке (prevent_destroy)
+    # Запускаем plan так, чтобы даже при ошибке у нас остался лог (plan.log)
     - |
       set +e
       terraform plan -out=tfplan 2>&1 | tee plan.log
       PLAN_RC=${PIPESTATUS[0]}
       set -e
 
-      # Если tfplan создался — сделаем tfplan.txt (для удобства чтения)
+      # Если tfplan создан — делаем tfplan.txt
       if [ -f tfplan ]; then
         terraform show -no-color tfplan > tfplan.txt || true
       else
         : > tfplan.txt
       fi
 
-      # === ВАЖНО ===
-      # netbox_plan_remove.txt собираем из plan.log (потому что plan может упасть до создания tfplan)
-      # Мы берём ровно адреса из строк вида:
-      #   # netbox_ip_address.ip["..."] will be destroyed
-      : > netbox_plan_remove.txt
-      grep -E '^ *# *.*netbox_' plan.log \
-        | grep -E 'will be destroyed|will be replaced|must be replaced|destroyed and then created' \
-        | sed -E 's/^ *# *//; s/ will be destroyed$//; s/ will be replaced$//; s/ must be replaced$//; s/ destroyed and then created$//' \
+      # Извлекаем адреса ресурсов, на которых сработал prevent_destroy (в первую очередь NetBox)
+      # Нам нужен именно адрес: netbox_ip_address.ip["..."]
+      sed -n 's/^.*Resource \([^ ]\+\) has lifecycle\.prevent_destroy set.*$/\1/p' plan.log \
+        | grep '^netbox_' \
         | sort -u > netbox_plan_remove.txt || true
 
       echo "=== PLAN_RC=$PLAN_RC ==="
@@ -111,7 +107,7 @@ plan:
     expire_in: 1 day
 
 # Retire: NetBox НЕ удаляем. Просто "отвязываем" из Terraform state netbox_* ресурсы,
-# которые Terraform планировал удалить (netbox_plan_remove.txt).
+# которые Terraform хотел удалить (они попали в netbox_plan_remove.txt из plan.log).
 retire_missing:
   <<: *tf_job
   stage: repair
@@ -125,7 +121,7 @@ retire_missing:
     - |
       if [ ! -s netbox_plan_remove.txt ]; then
         echo "netbox_plan_remove.txt отсутствует или пуст — нечего отвязывать."
-        echo "Проверь plan.log: должны быть строки '# netbox_... will be destroyed'."
+        echo "Если в plan была ошибка prevent_destroy, проверь plan.log в artifacts."
         exit 0
       fi
 
@@ -164,3 +160,34 @@ recreate_missing:
       fi
 
       echo "Recreate missing VM (новый apply, без tfplan):"
+      cat missing_vm_names.txt
+
+      terraform apply -auto-approve
+
+apply:
+  <<: *tf_job
+  stage: apply
+  when: manual
+  allow_failure: false
+  needs:
+    - job: plan
+      artifacts: true
+  script:
+    - |
+      # Защита от случайного пересоздания: если Guard нашел missing VM,
+      # используй manual job recreate_missing (восстановить) или retire_missing (удалить навсегда: сначала YAML, потом отвязка NetBox state).
+      if [ -s missing_vm_addresses.txt ]; then
+        echo "ERROR: Обнаружены missing VM."
+        echo "Используй manual job recreate_missing (восстановить) или retire_missing (удалить навсегда)."
+        cat missing_vm_names.txt || true
+        exit 1
+      fi
+
+      # Если tfplan не создан (plan падал) — apply тоже не должен запускаться
+      if [ ! -f tfplan ]; then
+        echo "ERROR: tfplan отсутствует (plan упал)."
+        echo "Apply невозможен. Используй recreate_missing или retire_missing, либо исправь plan."
+        exit 1
+      fi
+
+      terraform apply -auto-approve tfplan
